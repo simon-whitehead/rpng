@@ -128,9 +128,9 @@ impl PngFile {
         // The ImageHeader (IHDR) chunk should be first
         let ihdr = &data[self.idx..self.idx+4];
         if ihdr == b"IHDR" {
-            println!("Found IHDR chunk");
-
             // Parse the IHDR chunk
+            self.advance(4);
+
             if let Err(error) = self.parse_ihdr(data) {
                 return Err(PngError::InvalidFormat(error));
             }
@@ -138,6 +138,24 @@ impl PngFile {
             // We found an IHDR chunk... now lets just loop over every chunk we find and 
             // work with it
             println!("Width: {}px, Height: {}px", self.w, self.h);
+
+            loop {
+//                println!("Peek: {:?}", &data[self.idx - 20..self.idx + 20]);
+                let chunk_length = helpers::read_unsigned_int(&data[self.idx..]) as usize;
+                println!("Chunk length: {}", chunk_length);
+                self.advance(4);
+                let chunk_type = &data[self.idx..self.idx+4];
+                self.advance(4);
+                let chunk_data = &data[self.idx..self.idx+chunk_length];
+
+                match chunk_type {
+                    b"IEND" => { println!("Found end!"); break; },
+                    b"PLTE" => println!("found palette chunk"),
+                    n => println!("Found chunk: {}", String::from_utf8(n.iter().cloned().collect()).unwrap())
+                };
+
+                self.advance(chunk_data.len() + 4); // The chunk plus the CRC
+            }
         } else {
             return Err(PngError::InvalidFormat("IHDR chunk missing".to_string()))
         }
@@ -146,8 +164,6 @@ impl PngFile {
     }
 
     fn parse_ihdr(&mut self, data: &[u8]) -> PngParseResult {
-        self.advance(4);
-
         // Store the width and height
         self.w = helpers::read_unsigned_int(&data[self.idx..]) as usize;
         self.advance(4);
@@ -164,6 +180,10 @@ impl PngFile {
         self.filter_method = data[self.idx];
         self.advance(1);
         self.interlace_method = data[self.idx];
+        self.advance(1);
+
+        // Skip the CRC
+        self.advance(4);
 
         if let Err(message) = self.check_color_types_and_values() {
             return Err(message);
