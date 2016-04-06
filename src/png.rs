@@ -66,6 +66,9 @@ pub struct PngFile {
     filter_method: u8,
     interlace_method: u8,
 
+    // sBIT
+    significant_bits: [u8; 4],
+
     idx: usize,
 
     found_ihdr: bool
@@ -82,6 +85,8 @@ impl PngFile {
             compression_method: 0,
             filter_method: 0,
             interlace_method: 0,
+
+            significant_bits: [0; 4],
 
             idx: 0,
 
@@ -149,6 +154,7 @@ impl PngFile {
                 let chunk_data = &data[self.idx..self.idx+chunk_length];
 
                 match chunk_type {
+                    b"sBIT" => self.parse_sbit(chunk_data),
                     b"IEND" => { println!("Found end!"); break; },
                     b"PLTE" => println!("found palette chunk"),
                     n => println!("Found chunk: {}", String::from_utf8(n.iter().cloned().collect()).unwrap())
@@ -161,6 +167,24 @@ impl PngFile {
         }
 
         Ok(self)
+    }
+
+    fn parse_sbit(&mut self, data: &[u8]) {
+        if self.color_type == 0 {
+            self.significant_bits[0] = data[0];
+        } else if self.color_type == 2 || self.color_type == 3 {
+            self.significant_bits[0] = data[0];
+            self.significant_bits[1] = data[1];
+            self.significant_bits[2] = data[2];
+        } else if self.color_type == 4 {
+            self.significant_bits[0] = data[0];
+            self.significant_bits[1] = data[1];
+        } else {
+            self.significant_bits[0] = data[0];
+            self.significant_bits[1] = data[1];
+            self.significant_bits[2] = data[2];
+            self.significant_bits[3] = data[3];
+        }
     }
 
     fn parse_ihdr(&mut self, data: &[u8]) -> PngParseResult {
