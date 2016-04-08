@@ -1,6 +1,10 @@
+extern crate flate2;
+
 use std::fs::File;
 use std::io::Read;
 use std::ops::Deref;
+
+use self::flate2::read::ZlibDecoder;
 
 use helpers;
 
@@ -22,6 +26,29 @@ pub type PngParseResult = Result<(), String>;
 pub enum PngError {
     InvalidHeader,
     InvalidFormat(String)
+}
+
+pub struct ScanLine {
+    pub filter_type: u8,
+    pub pixels: Vec<Color>
+}
+
+pub struct Color {
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+    pub a: u8
+}
+
+impl Color {
+    pub fn new(r: u8, g: u8, b: u8, a: u8) -> Self {
+        Color {
+            r: r,
+            g: g,
+            b: b,
+            a: a
+        }
+    }
 }
 
 pub enum PngChunkType {
@@ -57,14 +84,18 @@ pub enum PngImageType {
 }
 
 pub struct PngFile {
-    w: usize,
-    h: usize,
+    pub w: usize,
+    pub h: usize,
 
     bit_depth: u8,
     color_type: u8,
     compression_method: u8,
     filter_method: u8,
     interlace_method: u8,
+
+    image_data_chunks: Vec<Vec<u8>>,
+
+    pub scan_lines: Vec<ScanLine>,
 
     // sBIT
     significant_bits: [u8; 4],
@@ -85,6 +116,10 @@ impl PngFile {
             compression_method: 0,
             filter_method: 0,
             interlace_method: 0,
+
+            image_data_chunks: Vec::new(),
+
+            scan_lines: Vec::new(),
 
             significant_bits: [0; 4],
 
@@ -114,7 +149,15 @@ impl PngFile {
         if header == PNG_HEADER {
             let rest = &file_data[8..];
 
-            png.read_chunks(rest)
+            if let Err(message) = png.read_chunks(rest) {
+                Err(PngError::InvalidFormat(message))
+            } else {
+                if let Err(message) = png.decode_pixel_data() {
+                    Err(PngError::InvalidFormat(message))
+                } else {
+                    Ok(png)
+                }
+            }
         } else {
             Err(PngError::InvalidHeader)
         }
@@ -125,7 +168,48 @@ impl PngFile {
         self.idx += distance;
     }
 
-    pub fn read_chunks(mut self, data: &[u8]) -> PngLoadResult {
+    fn decode_pixel_data(&mut self) -> PngParseResult {
+        let mut compressed_data = Vec::new();
+
+        for chunk in &mut self.image_data_chunks {
+            compressed_data.append(chunk);
+        }
+            println!("DEFLATE stream size: {}", compressed_data.len());
+            let predict = (((self.w / 8) * 32) + ((self.w & 7) * 32 + 7) / 8) * self.h;
+            let mut decompressed_data = Vec::new();
+            let mut buf = Vec::with_capacity(predict);
+            let mut decompressor = ZlibDecoder::new(&compressed_data[..]);
+            match decompressor.read_to_end(&mut buf) {
+                Ok(n) => {
+                    if n != 0 {
+                        decompressed_data.extend(buf.iter().cloned());
+                    }
+                },
+                Err(err) => return Err(err.to_string())
+            }
+            let row_size = 1 + (self.bit_depth as usize*self.w+7)/8;
+            let row_size_pixels = (row_size - 1) * 4;
+            let row_size_raw = row_size_pixels + 1;
+            for y in 0..self.h {
+                let row = &decompressed_data[y * row_size_raw..y * row_size_raw + row_size_raw];
+                let p = &row[1..];
+                let mut i = 0;
+                let mut pixels = Vec::new();
+                while i < p.len(){
+                    pixels.push(Color::new(p[i], p[i+1], p[i+2], p[i+3]));
+                    i+=4;
+                }
+                let scan_line = ScanLine {
+                    filter_type: row[0],
+                    pixels: pixels
+                };
+                self.scan_lines.push(scan_line);
+            }
+
+        Ok(())
+    }
+
+    pub fn read_chunks(&mut self, data: &[u8]) -> PngParseResult {
         // Grab length of chunk
         let length = helpers::read_unsigned_int(data);
         self.advance(4);
@@ -137,7 +221,7 @@ impl PngFile {
             self.advance(4);
 
             if let Err(error) = self.parse_ihdr(data) {
-                return Err(PngError::InvalidFormat(error));
+                return Err(error);
             }
 
             // We found an IHDR chunk... now lets just loop over every chunk we find and 
@@ -145,15 +229,14 @@ impl PngFile {
             println!("Width: {}px, Height: {}px", self.w, self.h);
 
             loop {
-//                println!("Peek: {:?}", &data[self.idx - 20..self.idx + 20]);
                 let chunk_length = helpers::read_unsigned_int(&data[self.idx..]) as usize;
-                println!("Chunk length: {}", chunk_length);
                 self.advance(4);
                 let chunk_type = &data[self.idx..self.idx+4];
                 self.advance(4);
                 let chunk_data = &data[self.idx..self.idx+chunk_length];
 
                 match chunk_type {
+                    b"IDAT" => self.image_data_chunks.push(chunk_data.iter().cloned().collect()),
                     b"sBIT" => self.parse_sbit(chunk_data),
                     b"IEND" => { println!("Found end!"); break; },
                     b"PLTE" => println!("found palette chunk"),
@@ -163,10 +246,10 @@ impl PngFile {
                 self.advance(chunk_data.len() + 4); // The chunk plus the CRC
             }
         } else {
-            return Err(PngError::InvalidFormat("IHDR chunk missing".to_string()))
+            return Err("IHDR chunk missing".to_string())
         }
 
-        Ok(self)
+        Ok(())
     }
 
     fn parse_sbit(&mut self, data: &[u8]) {
@@ -205,6 +288,8 @@ impl PngFile {
         self.advance(1);
         self.interlace_method = data[self.idx];
         self.advance(1);
+
+        println!("Color type: {}, Bit depth: {}, Interlace method: {}, Filter method: {}", self.color_type, self.bit_depth, self.interlace_method, self.filter_method);
 
         // Skip the CRC
         self.advance(4);
