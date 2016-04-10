@@ -95,6 +95,7 @@ pub struct PngFile {
 
     image_data_chunks: Vec<Vec<u8>>,
 
+    pub pitch: usize,
     pub scan_lines: Vec<ScanLine>,
 
     // sBIT
@@ -119,6 +120,7 @@ impl PngFile {
 
             image_data_chunks: Vec::new(),
 
+            pitch: 0,
             scan_lines: Vec::new(),
 
             significant_bits: [0; 4],
@@ -187,12 +189,12 @@ impl PngFile {
                 },
                 Err(err) => return Err(err.to_string())
             }
-            let row_size = 1 + (self.bit_depth as usize*self.w+7)/8;
-            let row_size_pixels = (row_size - 1) * 4;
-            let row_size_raw = row_size_pixels + 1;
+            let row_size = (1 + ((self.bit_depth * 4) as usize*self.w+7)/8) as usize;
             for y in 0..self.h {
-                let row = &decompressed_data[y * row_size_raw..y * row_size_raw + row_size_raw];
+                let row = &decompressed_data[y * row_size..y * row_size + row_size];
+                println!("Row filter byte: {}", &row[0]);
                 let p = &row[1..];
+                self.pitch = p.len();
                 let mut i = 0;
                 let mut pixels = Vec::new();
                 while i < p.len(){
