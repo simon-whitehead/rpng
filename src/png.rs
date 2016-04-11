@@ -191,18 +191,62 @@ impl PngFile {
             }
             let row_size = (1 + ((self.bit_depth * 4) as usize*self.w+7)/8) as usize;
             for y in 0..self.h {
-                let row = &decompressed_data[y * row_size..y * row_size + row_size];
-                println!("Row filter byte: {}", &row[0]);
-                let p = &row[1..];
-                self.pitch = p.len();
+                self.pitch = row_size - 1;
+                let mut i = 0;
+                let row_start = y * row_size;
+                let filter_type = decompressed_data[row_start];
+                let pixel_start = row_start + 1;
+                // Apply the filters
+                while i < row_size - 1 {
+                    let x = pixel_start + i;
+                    if filter_type == 1 {
+                        if x - pixel_start > 3 {
+                            let result = decompressed_data[x] as u32 + decompressed_data[x-4] as u32;
+                            decompressed_data[x] = (result % 256) as u8;
+                        }
+                    } else if filter_type == 2 {
+                        if y > 0 {
+                            let prev_x = x - row_size;
+                            let pixel_above = decompressed_data[prev_x];
+                            let pixel = decompressed_data[x];
+
+                            let result = ((pixel as u32 + pixel_above as u32) % 256) as u8;
+
+                            decompressed_data[x] = result;
+                        }
+                    } else if filter_type == 3 {
+                        let prev_x = x - row_size;
+                        let pixel_above = decompressed_data[prev_x];
+                        let pixel = decompressed_data[x];
+                        if x - pixel_start > 3 && y > 0 {
+                            let west_pixel = decompressed_data[x-4];
+                            let result = pixel as u32 + ((west_pixel as u32 + pixel_above as u32) / 2) as u32;
+                            decompressed_data[x] = (result % 256) as u8;
+                        } else {
+                            let result = ((pixel as u32 + (pixel_above as u32 / 2)) % 256) as u8;
+                            decompressed_data[x] = result;
+                        }
+                    } else if filter_type == 4 {
+                        // Paeth
+                    }
+                    i+=1;
+                }
+            }
+
+            for y in 0..self.h {
+                self.pitch = row_size - 1;
                 let mut i = 0;
                 let mut pixels = Vec::new();
-                while i < p.len(){
-                    pixels.push(Color::new(p[i], p[i+1], p[i+2], p[i+3]));
+                let row_start = y * row_size;
+                let filter_type = decompressed_data[row_start];
+                let pixel_start = row_start + 1;
+                while i < row_size - 1 {
+                    let x = pixel_start + i;
+                    pixels.push(Color::new(decompressed_data[x], decompressed_data[x + 1], decompressed_data[x + 2], decompressed_data[x + 3]));
                     i+=4;
                 }
                 let scan_line = ScanLine {
-                    filter_type: row[0],
+                    filter_type: decompressed_data[row_start],
                     pixels: pixels
                 };
                 self.scan_lines.push(scan_line);
