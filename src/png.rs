@@ -145,11 +145,11 @@ impl PngFile {
     pub fn from_data(file_data: &[u8]) -> PngLoadResult {
         let mut png = Self::default();
 
+        // Check that we have what looks like a
+        // PNG file.
         let header = &file_data[0..8];
         if header == PNG_HEADER {
-            let rest = &file_data[8..];
-
-            if let Err(message) = png.read_chunks(rest) {
+            if let Err(message) = png.read_chunks(&file_data[8..]) {
                 Err(PngError::InvalidFormat(message))
             } else {
                 if let Err(message) = png.decode_pixel_data() {
