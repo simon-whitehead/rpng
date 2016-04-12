@@ -202,7 +202,7 @@ impl PngFile {
                     if filter_type == 1 {
                         if x - pixel_start > 3 {
                             let result = decompressed_data[x] as u32 + decompressed_data[x-4] as u32;
-                            decompressed_data[x] = (result % 256) as u8;
+                            decompressed_data[x] = result as u8;
                         }
                     } else if filter_type == 2 {
                         if y > 0 {
@@ -210,9 +210,9 @@ impl PngFile {
                             let pixel_above = decompressed_data[prev_x];
                             let pixel = decompressed_data[x];
 
-                            let result = ((pixel as u32 + pixel_above as u32) % 256) as u8;
+                            let result = pixel as u32 + pixel_above as u32;
 
-                            decompressed_data[x] = result;
+                            decompressed_data[x] = result as u8;
                         }
                     } else if filter_type == 3 {
                         let prev_x = x - row_size;
@@ -221,13 +221,33 @@ impl PngFile {
                         if x - pixel_start > 3 && y > 0 {
                             let west_pixel = decompressed_data[x-4];
                             let result = pixel as u32 + ((west_pixel as u32 + pixel_above as u32) / 2) as u32;
-                            decompressed_data[x] = (result % 256) as u8;
+                            decompressed_data[x] = result as u8;
                         } else {
-                            let result = ((pixel as u32 + (pixel_above as u32 / 2)) % 256) as u8;
-                            decompressed_data[x] = result;
+                            let result = (pixel as u32 + pixel_above as u32) / 2;
+                            decompressed_data[x] = result as u8;
                         }
                     } else if filter_type == 4 {
                         // Paeth
+                        if x - pixel_start > 3 && y > 0 {
+                            let prev_x = x - row_size;
+                            let prev_prev_x = prev_x - 4;
+                            let upper_left = decompressed_data[prev_prev_x] as i32;
+                            let above = decompressed_data[prev_x] as i32;
+                            let left = decompressed_data[x - 4] as i32;
+
+                            let p: i32 = left + above - upper_left;
+                            let pa = (p - left).abs();
+                            let pb = (p - above).abs();
+                            let pc = (p - upper_left).abs();
+                            println!("pa: {}, pb: {}, pc: {}", pa, pb, pc);
+                            if pa <= pb && pa <= pc {
+                                decompressed_data[x] = (decompressed_data[x] as i32 + left as i32) as u8;
+                            } else if pb <= pc {
+                                decompressed_data[x] = (decompressed_data[x] as i32 + above as i32) as u8;
+                            } else {
+                                decompressed_data[x] = (decompressed_data[x] as i32 + upper_left as i32) as u8;
+                            }
+                        }
                     }
                     i+=1;
                 }
