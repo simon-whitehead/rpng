@@ -1,7 +1,7 @@
 extern crate flate2;
 
 use std::fs::File;
-use std::io::Read;
+use std::io::{Error, Read};
 use std::ops::Deref;
 use std::path::Path;
 
@@ -25,6 +25,7 @@ pub type PngParseResult = Result<(), String>;
 
 #[derive(Debug)]
 pub enum PngError {
+    Io(Error),
     InvalidHeader,
     InvalidFormat(String)
 }
@@ -134,9 +135,10 @@ impl PngFile {
     /// Load PNG from given path
     pub fn from_path<P: AsRef<Path>>(path: P) -> PngLoadResult {
         let mut data: Vec<u8> = Vec::new();
-        if let Ok(mut file) = File::open(path) {
-            let _ = file.read_to_end(&mut data); 
-        }
+        match File::open(path) {
+            Ok(mut file) => file.read_to_end(&mut data),
+            Err(err) => return Err(PngError::Io(err))
+        };
         Self::from_data(&data)
     }
 
