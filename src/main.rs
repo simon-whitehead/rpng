@@ -23,14 +23,11 @@ fn main() {
             let mut texture = renderer.create_texture(sdl2::pixels::PixelFormatEnum::ARGB8888, sdl2::render::TextureAccess::Static, png.w as u32, png.h as u32).unwrap();
 
             let mut pdata = Vec::new();
-            for scan_line in &png.scan_lines {
-                for pixel in &scan_line.pixels {
-                    pdata.push(pixel.b);
-                    pdata.push(pixel.g);
-                    pdata.push(pixel.r);
-                    pdata.push(pixel.a);
-                    //pdata.push(pixel.a);
-                }
+            for pixel in &png.pixels {
+                pdata.push(pixel.b);
+                pdata.push(pixel.g);
+                pdata.push(pixel.r);
+                pdata.push(pixel.a);
             }
 
             renderer.set_blend_mode(sdl2::render::BlendMode::Blend);

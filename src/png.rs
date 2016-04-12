@@ -3,6 +3,7 @@ extern crate flate2;
 use std::fs::File;
 use std::io::Read;
 use std::ops::Deref;
+use std::path::Path;
 
 use self::flate2::read::ZlibDecoder;
 
@@ -26,11 +27,6 @@ pub type PngParseResult = Result<(), String>;
 pub enum PngError {
     InvalidHeader,
     InvalidFormat(String)
-}
-
-pub struct ScanLine {
-    pub filter_type: u8,
-    pub pixels: Vec<Color>
 }
 
 pub struct Color {
@@ -96,7 +92,7 @@ pub struct PngFile {
     image_data_chunks: Vec<Vec<u8>>,
 
     pub pitch: usize,
-    pub scan_lines: Vec<ScanLine>,
+    pub pixels: Vec<Color>,
 
     // sBIT
     significant_bits: [u8; 4],
@@ -121,7 +117,7 @@ impl PngFile {
             image_data_chunks: Vec::new(),
 
             pitch: 0,
-            scan_lines: Vec::new(),
+            pixels: Vec::new(),
 
             significant_bits: [0; 4],
 
@@ -136,7 +132,7 @@ impl PngFile {
     }
 
     /// Load PNG from given path
-    pub fn from_path(path: &str) -> PngLoadResult {
+    pub fn from_path<P: AsRef<Path>>(path: P) -> PngLoadResult {
         let mut data: Vec<u8> = Vec::new();
         if let Ok(mut file) = File::open(path) {
             let _ = file.read_to_end(&mut data); 
@@ -265,11 +261,8 @@ impl PngFile {
                     pixels.push(Color::new(decompressed_data[x], decompressed_data[x + 1], decompressed_data[x + 2], decompressed_data[x + 3]));
                     i+=4;
                 }
-                let scan_line = ScanLine {
-                    filter_type: decompressed_data[row_start],
-                    pixels: pixels
-                };
-                self.scan_lines.push(scan_line);
+
+                self.pixels.extend(pixels);
             }
 
         Ok(())
@@ -292,8 +285,6 @@ impl PngFile {
 
             // We found an IHDR chunk... now lets just loop over every chunk we find and 
             // work with it
-            println!("Width: {}px, Height: {}px", self.w, self.h);
-
             loop {
                 let chunk_length = helpers::read_unsigned_int(&data[self.idx..]) as usize;
                 self.advance(4);
