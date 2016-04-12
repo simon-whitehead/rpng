@@ -72,7 +72,7 @@ pub enum PngChunkType {
     CompressedTextualData
 }
 
-pub enum PngImageType {
+pub enum PngColorType {
     Greyscale,
     Truecolor,
     IndexedColor,
