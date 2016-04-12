@@ -7,6 +7,7 @@ use std::path::Path;
 
 use self::flate2::read::ZlibDecoder;
 
+use color_type::ColorType;
 use helpers;
 
 const PNG_HEADER: [u8; 8] = [
@@ -72,20 +73,12 @@ pub enum PngChunkType {
     CompressedTextualData
 }
 
-pub enum PngColorType {
-    Greyscale,
-    Truecolor,
-    IndexedColor,
-    GreyscaleWithAlpha,
-    TrueColorWithAlpha
-}
-
 pub struct PngFile {
     pub w: usize,
     pub h: usize,
 
     bit_depth: u8,
-    color_type: u8,
+    color_type: ColorType,
     compression_method: u8,
     filter_method: u8,
     interlace_method: u8,
@@ -110,7 +103,7 @@ impl PngFile {
             h: 0,
 
             bit_depth: 0,
-            color_type: 0,
+            color_type: ColorType::Unknown,
             compression_method: 0,
             filter_method: 0,
             interlace_method: 0,
@@ -174,7 +167,6 @@ impl PngFile {
         for chunk in &mut self.image_data_chunks {
             compressed_data.append(chunk);
         }
-            println!("DEFLATE stream size: {}", compressed_data.len());
             let predict = (((self.w / 8) * 32) + ((self.w & 7) * 32 + 7) / 8) * self.h;
             let mut decompressed_data = Vec::new();
             let mut buf = Vec::with_capacity(predict);
@@ -237,7 +229,6 @@ impl PngFile {
                             let pa = (p - left).abs();
                             let pb = (p - above).abs();
                             let pc = (p - upper_left).abs();
-                            println!("pa: {}, pb: {}, pc: {}", pa, pb, pc);
                             if pa <= pb && pa <= pc {
                                 decompressed_data[x] = (decompressed_data[x] as i32 + left as i32) as u8;
                             } else if pb <= pc {
@@ -288,6 +279,7 @@ impl PngFile {
             // We found an IHDR chunk... now lets just loop over every chunk we find and 
             // work with it
             loop {
+                // Read the chunk length, type and its data
                 let chunk_length = helpers::read_unsigned_int(&data[self.idx..]) as usize;
                 self.advance(4);
                 let chunk_type = &data[self.idx..self.idx+4];
@@ -312,13 +304,13 @@ impl PngFile {
     }
 
     fn parse_sbit(&mut self, data: &[u8]) {
-        if self.color_type == 0 {
+        if self.color_type == ColorType::Greyscale {
             self.significant_bits[0] = data[0];
-        } else if self.color_type == 2 || self.color_type == 3 {
+        } else if self.color_type == ColorType::Truecolor || self.color_type == ColorType::IndexedColor {
             self.significant_bits[0] = data[0];
             self.significant_bits[1] = data[1];
             self.significant_bits[2] = data[2];
-        } else if self.color_type == 4 {
+        } else if self.color_type == ColorType::GreyscaleWithAlpha {
             self.significant_bits[0] = data[0];
             self.significant_bits[1] = data[1];
         } else {
@@ -339,7 +331,7 @@ impl PngFile {
         // Store the rest of the IHDR metadata
         self.bit_depth = data[self.idx];
         self.advance(1);
-        self.color_type = data[self.idx];
+        self.color_type = self.get_color_type(data[self.idx]);
         self.advance(1);
         self.compression_method = data[self.idx];
         self.advance(1);
@@ -347,8 +339,6 @@ impl PngFile {
         self.advance(1);
         self.interlace_method = data[self.idx];
         self.advance(1);
-
-        println!("Color type: {}, Bit depth: {}, Interlace method: {}, Filter method: {}", self.color_type, self.bit_depth, self.interlace_method, self.filter_method);
 
         // Skip the CRC
         self.advance(4);
@@ -372,19 +362,30 @@ impl PngFile {
         Ok(())
     }
 
+    fn get_color_type(&self, b: u8) -> ColorType {
+        match b {
+            0 => ColorType::Greyscale,
+            2 => ColorType::Truecolor,
+            3 => ColorType::IndexedColor,
+            4 => ColorType::GreyscaleWithAlpha,
+            6 => ColorType::TrueColorWithAlpha,
+            _ => ColorType::Unknown
+        }
+    }
+
     fn check_color_types_and_values(&self) -> PngParseResult {
-        if self.color_type != 0 &&
-           self.color_type != 2 &&
-           self.color_type != 3 &&
-           self.color_type != 4 &&
-           self.color_type != 6 {
+        if self.color_type != ColorType::Greyscale &&
+           self.color_type != ColorType::Truecolor &&
+           self.color_type != ColorType::IndexedColor &&
+           self.color_type != ColorType::GreyscaleWithAlpha &&
+           self.color_type != ColorType::TrueColorWithAlpha {
             
                return Err(format!("Invalid colour type, found: {}", self.color_type));
         }
 
         let color_type_bit_depth_err = "Invalid color type and bit depth combination".to_string();
 
-        if self.color_type == 0 && (
+        if self.color_type == ColorType::Greyscale && (
             self.bit_depth != 1 &&
             self.bit_depth != 2 &&
             self.bit_depth != 4 &&
@@ -394,14 +395,14 @@ impl PngFile {
             return Err(color_type_bit_depth_err);
         }
 
-        if self.color_type == 2 && (
+        if self.color_type == ColorType::Truecolor && (
             self.bit_depth != 8 &&
             self.bit_depth != 16
         ) {
             return Err(color_type_bit_depth_err);
         }
 
-        if self.color_type == 3 && (
+        if self.color_type == ColorType::IndexedColor && (
             self.bit_depth != 1 &&
             self.bit_depth != 2 &&
             self.bit_depth != 4 &&
@@ -410,14 +411,14 @@ impl PngFile {
             return Err(color_type_bit_depth_err);
         }
 
-        if self.color_type == 4 && (
+        if self.color_type == ColorType::GreyscaleWithAlpha && (
             self.bit_depth != 8 &&
             self.bit_depth != 16
         ) {
             return Err(color_type_bit_depth_err);
         }
 
-        if self.color_type == 6 && (
+        if self.color_type == ColorType::TrueColorWithAlpha && (
             self.bit_depth != 8 &&
             self.bit_depth != 16
         ) {

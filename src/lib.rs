@@ -1,3 +1,4 @@
+mod color_type;
 mod helpers;
 mod png;
 
