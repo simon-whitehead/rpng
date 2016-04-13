@@ -20,17 +20,18 @@ fn main() {
     match rpng::PngFile::from_path("/Users/Simon/ship.png") {
         Err(error) => println!("Error loading PNG: {:?}", error),
         Ok(png) =>  {
-            let mut texture = renderer.create_texture(sdl2::pixels::PixelFormatEnum::ARGB8888, sdl2::render::TextureAccess::Static, png.w as u32, png.h as u32).unwrap();
+            let mut texture = renderer.create_texture(sdl2::pixels::PixelFormatEnum::RGBA8888, sdl2::render::TextureAccess::Static, png.w as u32, png.h as u32).unwrap();
 
             let mut pdata = Vec::new();
+            println!("Pixels: {}", png.pixels.len());
             for pixel in &png.pixels {
+                pdata.push(pixel.a);
                 pdata.push(pixel.b);
                 pdata.push(pixel.g);
                 pdata.push(pixel.r);
-                pdata.push(pixel.a);
             }
 
-            renderer.set_blend_mode(sdl2::render::BlendMode::Blend);
+            texture.set_blend_mode(sdl2::render::BlendMode::Blend);
 
             'out:
             loop {
@@ -45,7 +46,7 @@ fn main() {
                     }
                 }
 
-                renderer.set_draw_color(sdl2::pixels::Color::RGB(0,255,0));
+                renderer.set_draw_color(sdl2::pixels::Color::RGB(0,0,0));
                 renderer.clear();
 
                 match texture.update(None, &pdata[..], png.pitch) {

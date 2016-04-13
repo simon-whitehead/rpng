@@ -49,30 +49,6 @@ impl Color {
     }
 }
 
-pub enum PngChunkType {
-    // Critical
-    ImageHeader,
-    Palette,
-    ImageData,
-    End,
-
-    // Ancillary
-    Chromaticity,
-    Gamma,
-    ICCProfile,
-    SignificantBits,
-    RGBColorSpace,
-    BackgroundColor,
-    Histogram,
-    Transparency,
-    PhysicalPixelDimensions,
-    SuggestedPalette,
-    LastModifiedTime,
-    InternationalTextualData,
-    TextualData,
-    CompressedTextualData
-}
-
 pub struct PngFile {
     pub w: usize,
     pub h: usize,
@@ -331,7 +307,7 @@ impl PngFile {
         // Store the rest of the IHDR metadata
         self.bit_depth = data[self.idx];
         self.advance(1);
-        self.color_type = self.get_color_type(data[self.idx]);
+        self.color_type = ColorType::from(data[self.idx]);
         self.advance(1);
         self.compression_method = data[self.idx];
         self.advance(1);
@@ -343,7 +319,7 @@ impl PngFile {
         // Skip the CRC
         self.advance(4);
 
-        if let Err(message) = self.check_color_types_and_values() {
+        if let Err(message) = self.color_type.validate(self.bit_depth) {
             return Err(message);
         }
 
@@ -357,72 +333,6 @@ impl PngFile {
 
         if self.interlace_method > 1 {
             return Err("Interlace method invalid".to_string());
-        }
-
-        Ok(())
-    }
-
-    fn get_color_type(&self, b: u8) -> ColorType {
-        match b {
-            0 => ColorType::Greyscale,
-            2 => ColorType::Truecolor,
-            3 => ColorType::IndexedColor,
-            4 => ColorType::GreyscaleWithAlpha,
-            6 => ColorType::TrueColorWithAlpha,
-            _ => ColorType::Unknown
-        }
-    }
-
-    fn check_color_types_and_values(&self) -> PngParseResult {
-        if self.color_type != ColorType::Greyscale &&
-           self.color_type != ColorType::Truecolor &&
-           self.color_type != ColorType::IndexedColor &&
-           self.color_type != ColorType::GreyscaleWithAlpha &&
-           self.color_type != ColorType::TrueColorWithAlpha {
-            
-               return Err(format!("Invalid colour type, found: {}", self.color_type));
-        }
-
-        let color_type_bit_depth_err = "Invalid color type and bit depth combination".to_string();
-
-        if self.color_type == ColorType::Greyscale && (
-            self.bit_depth != 1 &&
-            self.bit_depth != 2 &&
-            self.bit_depth != 4 &&
-            self.bit_depth != 8 &&
-            self.bit_depth != 16
-        ) {
-            return Err(color_type_bit_depth_err);
-        }
-
-        if self.color_type == ColorType::Truecolor && (
-            self.bit_depth != 8 &&
-            self.bit_depth != 16
-        ) {
-            return Err(color_type_bit_depth_err);
-        }
-
-        if self.color_type == ColorType::IndexedColor && (
-            self.bit_depth != 1 &&
-            self.bit_depth != 2 &&
-            self.bit_depth != 4 &&
-            self.bit_depth != 8
-        ) {
-            return Err(color_type_bit_depth_err);
-        }
-
-        if self.color_type == ColorType::GreyscaleWithAlpha && (
-            self.bit_depth != 8 &&
-            self.bit_depth != 16
-        ) {
-            return Err(color_type_bit_depth_err);
-        }
-
-        if self.color_type == ColorType::TrueColorWithAlpha && (
-            self.bit_depth != 8 &&
-            self.bit_depth != 16
-        ) {
-            return Err(color_type_bit_depth_err);
         }
 
         Ok(())
