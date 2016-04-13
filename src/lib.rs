@@ -1,5 +1,6 @@
 mod color_type;
 mod helpers;
+mod ihdr;
 mod png;
 
 pub use self::png::PngFile;

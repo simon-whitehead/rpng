@@ -9,6 +9,7 @@ use self::flate2::read::ZlibDecoder;
 
 use color_type::ColorType;
 use helpers;
+use ihdr;
 
 const PNG_HEADER: [u8; 8] = [
     0x89,
@@ -246,11 +247,7 @@ impl PngFile {
         let ihdr = &data[self.idx..self.idx+4];
         if ihdr == b"IHDR" {
             // Parse the IHDR chunk
-            self.advance(4);
-
-            if let Err(error) = self.parse_ihdr(data) {
-                return Err(error);
-            }
+            try!(self.parse_ihdr(&data[..]));
 
             // We found an IHDR chunk... now lets just loop over every chunk we find and 
             // work with it
@@ -279,6 +276,25 @@ impl PngFile {
         Ok(())
     }
 
+    fn parse_ihdr(&mut self, data: &[u8]) -> PngParseResult {
+        match ihdr::parse(&data[self.idx..]) {
+            Err(error) => return Err(error),
+            Ok(ihdr) => {
+                self.w = ihdr.width;
+                self.h = ihdr.height;
+                self.bit_depth = ihdr.bit_depth;
+                self.color_type = ihdr.color_type;
+                self.compression_method = ihdr.compression_method;
+                self.filter_method = ihdr.filter_method;
+                self.interlace_method = ihdr.interlace_method;
+            }
+        };
+
+        self.advance(21); // The IHDR chunk data + the CRC
+
+        Ok(())
+    }
+
     fn parse_sbit(&mut self, data: &[u8]) {
         if self.color_type == ColorType::Greyscale {
             self.significant_bits[0] = data[0];
@@ -295,46 +311,5 @@ impl PngFile {
             self.significant_bits[2] = data[2];
             self.significant_bits[3] = data[3];
         }
-    }
-
-    fn parse_ihdr(&mut self, data: &[u8]) -> PngParseResult {
-        // Store the width and height
-        self.w = helpers::read_unsigned_int(&data[self.idx..]) as usize;
-        self.advance(4);
-        self.h = helpers::read_unsigned_int(&data[self.idx..]) as usize;
-        self.advance(4);
-
-        // Store the rest of the IHDR metadata
-        self.bit_depth = data[self.idx];
-        self.advance(1);
-        self.color_type = ColorType::from(data[self.idx]);
-        self.advance(1);
-        self.compression_method = data[self.idx];
-        self.advance(1);
-        self.filter_method = data[self.idx];
-        self.advance(1);
-        self.interlace_method = data[self.idx];
-        self.advance(1);
-
-        // Skip the CRC
-        self.advance(4);
-
-        if let Err(message) = self.color_type.validate(self.bit_depth) {
-            return Err(message);
-        }
-
-        if self.compression_method != 0 {
-            return Err("Compression method invalid".to_string());
-        }
-
-        if self.filter_method != 0 {
-            return Err("Filter method invalid".to_string());
-        }
-
-        if self.interlace_method > 1 {
-            return Err("Interlace method invalid".to_string());
-        }
-
-        Ok(())
     }
 }
