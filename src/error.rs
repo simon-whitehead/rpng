@@ -1,14 +1,14 @@
-use std::io::Error;
+use std::io;
 
 #[derive(Debug)]
 pub enum PngError {
-    Io(Error),
+    Io(io::Error),
     InvalidHeader,
     InvalidFormat(String)
 }
 
-impl From<Error> for PngError {
-    fn from(err: Error) -> Self {
+impl From<io::Error> for PngError {
+    fn from(err: io::Error) -> Self {
         PngError::Io(err)
     }
 }
