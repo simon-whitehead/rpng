@@ -102,7 +102,7 @@ impl PngFile {
         Self::new(0, 0)
     }
 
-    /// Load PNG from given path
+    /// Loads a PNG from given path.
     pub fn from_path<P: AsRef<Path>>(path: P) -> PngLoadResult {
         let mut data: Vec<u8> = Vec::new();
         match File::open(path) {
@@ -112,6 +112,7 @@ impl PngFile {
         Self::from_data(&data)
     }
 
+    /// Parses a byte slice as a PNG file.
     pub fn from_data(file_data: &[u8]) -> PngLoadResult {
         let mut png = Self::default();
 
