@@ -1,4 +1,3 @@
-use std::convert;
 use std::fmt;
 
 #[derive(PartialEq)]
@@ -83,7 +82,7 @@ impl fmt::Display for ColorType {
     }
 }
 
-impl convert::From<u8> for ColorType {
+impl From<u8> for ColorType {
     fn from(b: u8) -> Self {
         match b {
             0 => ColorType::Greyscale,

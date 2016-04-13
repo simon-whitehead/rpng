@@ -1,4 +1,5 @@
 mod color_type;
+mod error;
 mod helpers;
 mod ihdr;
 mod png;

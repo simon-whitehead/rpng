@@ -1,13 +1,13 @@
 extern crate flate2;
 
 use std::fs::File;
-use std::io::{Error, Read};
-use std::ops::Deref;
+use std::io::{Read};
 use std::path::Path;
 
 use self::flate2::read::ZlibDecoder;
 
 use color_type::ColorType;
+use error::PngError;
 use helpers;
 use ihdr;
 
@@ -24,13 +24,6 @@ const PNG_HEADER: [u8; 8] = [
 
 pub type PngLoadResult = Result<PngFile, PngError>;
 pub type PngParseResult = Result<(), String>;
-
-#[derive(Debug)]
-pub enum PngError {
-    Io(Error),
-    InvalidHeader,
-    InvalidFormat(String)
-}
 
 pub struct Color {
     pub r: u8,
@@ -68,16 +61,14 @@ pub struct PngFile {
     // sBIT
     significant_bits: [u8; 4],
 
-    idx: usize,
-
-    found_ihdr: bool
+    idx: usize
 }
 
 impl PngFile {
     pub fn new(width: usize, height: usize) -> Self {
         PngFile {
-            w: 0,
-            h: 0,
+            w: width,
+            h: height,
 
             bit_depth: 0,
             color_type: ColorType::Unknown,
@@ -92,9 +83,7 @@ impl PngFile {
 
             significant_bits: [0; 4],
 
-            idx: 0,
-
-            found_ihdr: false
+            idx: 0
         }
     }
 
@@ -106,7 +95,7 @@ impl PngFile {
     pub fn from_path<P: AsRef<Path>>(path: P) -> PngLoadResult {
         let mut data: Vec<u8> = Vec::new();
         match File::open(path) {
-            Ok(mut file) => file.read_to_end(&mut data),
+            Ok(mut file) => try!(file.read_to_end(&mut data)),
             Err(err) => return Err(PngError::Io(err))
         };
         Self::from_data(&data)
@@ -225,7 +214,6 @@ impl PngFile {
                 let mut i = 0;
                 let mut pixels = Vec::new();
                 let row_start = y * row_size;
-                let filter_type = decompressed_data[row_start];
                 let pixel_start = row_start + 1;
                 while i < row_size - 1 {
                     let x = pixel_start + i;
@@ -241,8 +229,7 @@ impl PngFile {
 
     pub fn read_chunks(&mut self, data: &[u8]) -> PngParseResult {
         // Grab length of chunk
-        let length = helpers::read_unsigned_int(data);
-        self.advance(4);
+        self.advance(4); // Jump over the IHDR u32 length bytes
 
         // The ImageHeader (IHDR) chunk should be first
         let ihdr = &data[self.idx..self.idx+4];
@@ -255,10 +242,8 @@ impl PngFile {
             loop {
                 // Read the chunk length, type and its data
                 let chunk_length = helpers::read_unsigned_int(&data[self.idx..]) as usize;
-                self.advance(4);
-                let chunk_type = &data[self.idx..self.idx+4];
-                self.advance(4);
-                let chunk_data = &data[self.idx..self.idx+chunk_length];
+                let chunk_type = &data[self.idx + 0x04..self.idx + 0x08];
+                let chunk_data = &data[self.idx + 0x08..self.idx + chunk_length + 0x08];
 
                 match chunk_type {
                     b"IDAT" => self.image_data_chunks.push(chunk_data.iter().cloned().collect()),
@@ -268,7 +253,7 @@ impl PngFile {
                     n => println!("Found chunk: {}", String::from_utf8(n.iter().cloned().collect()).unwrap())
                 };
 
-                self.advance(chunk_data.len() + 4); // The chunk plus the CRC
+                self.advance(chunk_data.len() + 12); // The chunk length, type, data and CRC
             }
         } else {
             return Err("IHDR chunk missing".to_string())

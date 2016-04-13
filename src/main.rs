@@ -1,9 +1,6 @@
 extern crate sdl2;
 extern crate rpng;
 
-use sdl2::{EventPump};
-use sdl2::keyboard::Keycode;
-
 fn main() {
     let context = sdl2::init().unwrap();
     let video = context.video().unwrap();
@@ -37,7 +34,6 @@ fn main() {
             loop {
                 for event in events.poll_iter() {
                     use sdl2::event::Event::*;
-                    use sdl2::keyboard::*;
 
                     match event {
                         KeyDown { keycode, .. } => match keycode { Some(k) => if k == sdl2::keyboard::Keycode::Escape { break 'out }, None => () },
