@@ -123,6 +123,60 @@ impl PngFile {
         self.idx += distance;
     }
 
+    pub fn read_chunks(&mut self, data: &[u8]) -> PngParseResult {
+        // Grab length of chunk
+        self.advance(4); // Jump over the IHDR u32 length bytes
+
+        // The ImageHeader (IHDR) chunk should be first
+        let ihdr = &data[self.idx..self.idx+4];
+        if ihdr == b"IHDR" {
+            // Parse the IHDR chunk
+            try!(self.parse_ihdr(&data[..]));
+
+            // We found an IHDR chunk... now lets just loop over every chunk we find and 
+            // work with it
+            loop {
+                // Read the chunk length, type and its data
+                let chunk_length = helpers::read_unsigned_int(&data[self.idx..]) as usize;
+                let chunk_type = &data[self.idx + 0x04..self.idx + 0x08];
+                let chunk_data = &data[self.idx + 0x08..self.idx + chunk_length + 0x08];
+
+                match chunk_type {
+                    b"IDAT" => self.image_data_chunks.push(chunk_data.iter().cloned().collect()),
+                    b"sBIT" => self.parse_sbit(chunk_data),
+                    b"IEND" => { println!("Found end!"); break; },
+                    b"PLTE" => println!("found palette chunk"),
+                    n => println!("Found chunk: {}", String::from_utf8(n.iter().cloned().collect()).unwrap())
+                };
+
+                self.advance(chunk_data.len() + 0x0C); // The chunk length, type, data and CRC
+            }
+        } else {
+            return Err("IHDR chunk missing".to_string())
+        }
+
+        Ok(())
+    }
+
+    fn parse_ihdr(&mut self, data: &[u8]) -> PngParseResult {
+        match ihdr::parse(&data[self.idx..]) {
+            Err(error) => return Err(error),
+            Ok(ihdr) => {
+                self.w = ihdr.width;
+                self.h = ihdr.height;
+                self.bit_depth = ihdr.bit_depth;
+                self.color_type = ihdr.color_type;
+                self.compression_method = ihdr.compression_method;
+                self.filter_method = ihdr.filter_method;
+                self.interlace_method = ihdr.interlace_method;
+            }
+        };
+
+        self.advance(21); // The IHDR chunk data + the CRC
+
+        Ok(())
+    }
+
     fn decode_pixel_data(&mut self) -> PngParseResult {
         let mut compressed_data = Vec::new();
 
@@ -218,60 +272,6 @@ impl PngFile {
 
                 self.pixels.extend(pixels);
             }
-
-        Ok(())
-    }
-
-    pub fn read_chunks(&mut self, data: &[u8]) -> PngParseResult {
-        // Grab length of chunk
-        self.advance(4); // Jump over the IHDR u32 length bytes
-
-        // The ImageHeader (IHDR) chunk should be first
-        let ihdr = &data[self.idx..self.idx+4];
-        if ihdr == b"IHDR" {
-            // Parse the IHDR chunk
-            try!(self.parse_ihdr(&data[..]));
-
-            // We found an IHDR chunk... now lets just loop over every chunk we find and 
-            // work with it
-            loop {
-                // Read the chunk length, type and its data
-                let chunk_length = helpers::read_unsigned_int(&data[self.idx..]) as usize;
-                let chunk_type = &data[self.idx + 0x04..self.idx + 0x08];
-                let chunk_data = &data[self.idx + 0x08..self.idx + chunk_length + 0x08];
-
-                match chunk_type {
-                    b"IDAT" => self.image_data_chunks.push(chunk_data.iter().cloned().collect()),
-                    b"sBIT" => self.parse_sbit(chunk_data),
-                    b"IEND" => { println!("Found end!"); break; },
-                    b"PLTE" => println!("found palette chunk"),
-                    n => println!("Found chunk: {}", String::from_utf8(n.iter().cloned().collect()).unwrap())
-                };
-
-                self.advance(chunk_data.len() + 0x0C); // The chunk length, type, data and CRC
-            }
-        } else {
-            return Err("IHDR chunk missing".to_string())
-        }
-
-        Ok(())
-    }
-
-    fn parse_ihdr(&mut self, data: &[u8]) -> PngParseResult {
-        match ihdr::parse(&data[self.idx..]) {
-            Err(error) => return Err(error),
-            Ok(ihdr) => {
-                self.w = ihdr.width;
-                self.h = ihdr.height;
-                self.bit_depth = ihdr.bit_depth;
-                self.color_type = ihdr.color_type;
-                self.compression_method = ihdr.compression_method;
-                self.filter_method = ihdr.filter_method;
-                self.interlace_method = ihdr.interlace_method;
-            }
-        };
-
-        self.advance(21); // The IHDR chunk data + the CRC
 
         Ok(())
     }
