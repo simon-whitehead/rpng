@@ -108,13 +108,13 @@ impl PngFile {
         // Check that we have what looks like a
         // PNG file.
         let header = &file_data[0..8];
-        if header == PNG_HEADER {
+        if header != PNG_HEADER {
+            Err(PngError::InvalidHeader)
+        } else {
             try!(png.read_chunks(&file_data[0x08..]));
             try!(png.decode_pixel_data());
 
             Ok(png)
-        } else {
-            Err(PngError::InvalidHeader)
         }
     }
 
