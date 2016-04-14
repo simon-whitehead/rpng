@@ -12,3 +12,9 @@ impl From<io::Error> for PngError {
         PngError::Io(err)
     }
 }
+
+impl From<String> for PngError {
+    fn from(err: String) -> Self {
+        PngError::InvalidFormat(err)
+    }
+}

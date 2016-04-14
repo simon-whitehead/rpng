@@ -109,15 +109,10 @@ impl PngFile {
         // PNG file.
         let header = &file_data[0..8];
         if header == PNG_HEADER {
-            if let Err(message) = png.read_chunks(&file_data[8..]) {
-                Err(PngError::InvalidFormat(message))
-            } else {
-                if let Err(message) = png.decode_pixel_data() {
-                    Err(PngError::InvalidFormat(message))
-                } else {
-                    Ok(png)
-                }
-            }
+            try!(png.read_chunks(&file_data[0x08..]));
+            try!(png.decode_pixel_data());
+
+            Ok(png)
         } else {
             Err(PngError::InvalidHeader)
         }
