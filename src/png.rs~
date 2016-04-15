@@ -172,7 +172,7 @@ impl PngFile {
             }
         };
 
-        self.advance(0x15); // The IHDR chunk type, data and CRC
+        self.advance(0x15); // The IHDR chunk data + the CRC
 
         Ok(())
     }
