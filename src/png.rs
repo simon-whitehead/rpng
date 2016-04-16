@@ -126,7 +126,6 @@ impl PngFile {
     }
 
     pub fn read_chunks(&mut self, data: &[u8]) -> PngParseResult {
-        // Grab length of chunk
         self.advance(4); // Jump over the IHDR u32 length bytes
 
         // The ImageHeader (IHDR) chunk should be first
