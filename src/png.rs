@@ -1,12 +1,10 @@
-extern crate flate2;
 
 use std::fs::File;
-use std::io::{Read};
+use std::io::Read;
 use std::path::Path;
 
-use self::flate2::read::ZlibDecoder;
-
 use color_type::ColorType;
+use deflate;
 use error::PngError;
 use helpers;
 use ihdr;
@@ -47,9 +45,9 @@ pub struct PngFile {
     pub w: usize,
     pub h: usize,
 
-    bit_depth: u8,
-    bits_per_pixel: u8,
-    bytes_per_pixel: u8,
+    bit_depth: usize,
+    bits_per_pixel: usize,
+    bytes_per_pixel: usize,
     color_type: ColorType,
     compression_method: u8,
     filter_method: u8,
@@ -169,7 +167,7 @@ impl PngFile {
             Ok(ihdr) => {
                 self.w = ihdr.width;
                 self.h = ihdr.height;
-                self.bit_depth = ihdr.bit_depth;
+                self.bit_depth = ihdr.bit_depth as usize;
                 self.color_type = ihdr.color_type;
                 self.compression_method = ihdr.compression_method;
                 self.filter_method = ihdr.filter_method;
@@ -210,102 +208,98 @@ impl PngFile {
     }
 
     fn decode_pixel_data(&mut self) -> PngParseResult {
+        let mut pixels = try!(self.get_pixel_data());
+
+        let row_size = 1 + (self.bits_per_pixel * self.w + 7) / 8;
+        for y in 0..self.h {
+            self.pitch = row_size - 1;
+            let mut i = 0;
+            let row_start = y * row_size;
+            let filter_type = pixels[row_start];
+            let pixel_start = row_start + 1;
+            // Apply the filters
+            while i < row_size - 1 {
+                let x = pixel_start + i;
+                if filter_type == 1 {
+                    if x - pixel_start > self.bytes_per_pixel - 1 {
+                        let result = pixels[x] as u32 + pixels[x - self.bytes_per_pixel] as u32;
+                        pixels[x] = result as u8;
+                    }
+                } else if filter_type == 2 {
+                    if y > 0 {
+                        let prev_x = x - row_size;
+                        let pixel_above = pixels[prev_x];
+                        let pixel = pixels[x];
+
+                        let result = pixel as u32 + pixel_above as u32;
+
+                        pixels[x] = result as u8;
+                    }
+                } else if filter_type == 3 {
+                    let prev_x = x - row_size;
+                    let pixel_above = pixels[prev_x];
+                    let pixel = pixels[x];
+                    if x - pixel_start > self.bytes_per_pixel - 1 && y > 0 {
+                        let west_pixel = pixels[x - self.bytes_per_pixel];
+                        let result = pixel as u32 + ((west_pixel as u32 + pixel_above as u32) / 2) as u32;
+                        pixels[x] = result as u8;
+                    } else {
+                        let result = (pixel as u32 + pixel_above as u32) / 2;
+                        pixels[x] = result as u8;
+                    }
+                } else if filter_type == 4 {
+                    // Paeth
+                    if x - pixel_start > self.bytes_per_pixel - 1 && y > 0 {
+                        let prev_x = x - row_size;
+                        let prev_prev_x = prev_x - 4;
+                        let upper_left = pixels[prev_prev_x] as i32;
+                        let above = pixels[prev_x] as i32;
+                        let left = pixels[x - 4] as i32;
+
+                        let p: i32 = left + above - upper_left;
+                        let pa = (p - left).abs();
+                        let pb = (p - above).abs();
+                        let pc = (p - upper_left).abs();
+                        if pa <= pb && pa <= pc {
+                            pixels[x] = (pixels[x] as i32 + left as i32) as u8;
+                        } else if pb <= pc {
+                            pixels[x] = (pixels[x] as i32 + above as i32) as u8;
+                        } else {
+                            pixels[x] = (pixels[x] as i32 + upper_left as i32) as u8;
+                        }
+                    }
+                }
+                i+=1;
+            }
+        }
+
+        for y in 0..self.h {
+            self.pitch = row_size - 1;
+            let mut i = 0;
+            let mut result = Vec::new();
+            let row_start = y * row_size;
+            let pixel_start = row_start + 1;
+            while i < row_size - 1 {
+                let x = pixel_start + i;
+                result.push(Color::new(pixels[x], pixels[x + 1], pixels[x + 2], pixels[x + 3]));
+                i+=4;
+            }
+
+            self.pixels.extend(result);
+        }
+
+        Ok(())
+    }
+
+    fn get_pixel_data(&mut self) -> Result<Vec<u8>, String> {
         let mut compressed_data = Vec::new();
 
         for chunk in &mut self.image_data_chunks {
             compressed_data.append(chunk);
         }
-            let predict = (((self.w / 8) * 32) + ((self.w & 7) * 32 + 7) / 8) * self.h;
-            let mut decompressed_data = Vec::new();
-            let mut buf = Vec::with_capacity(predict);
-            let mut decompressor = ZlibDecoder::new(&compressed_data[..]);
-            match decompressor.read_to_end(&mut buf) {
-                Ok(n) => {
-                    if n != 0 {
-                        decompressed_data.extend(buf.iter().cloned());
-                    }
-                },
-                Err(err) => return Err(err.to_string())
-            }
-            let row_size = (1 + ((self.bit_depth * 4) as usize*self.w+7)/8) as usize;
-            for y in 0..self.h {
-                self.pitch = row_size - 1;
-                let mut i = 0;
-                let row_start = y * row_size;
-                let filter_type = decompressed_data[row_start];
-                let pixel_start = row_start + 1;
-                // Apply the filters
-                while i < row_size - 1 {
-                    let x = pixel_start + i;
-                    if filter_type == 1 {
-                        if x - pixel_start > 3 {
-                            let result = decompressed_data[x] as u32 + decompressed_data[x-4] as u32;
-                            decompressed_data[x] = result as u8;
-                        }
-                    } else if filter_type == 2 {
-                        if y > 0 {
-                            let prev_x = x - row_size;
-                            let pixel_above = decompressed_data[prev_x];
-                            let pixel = decompressed_data[x];
 
-                            let result = pixel as u32 + pixel_above as u32;
-
-                            decompressed_data[x] = result as u8;
-                        }
-                    } else if filter_type == 3 {
-                        let prev_x = x - row_size;
-                        let pixel_above = decompressed_data[prev_x];
-                        let pixel = decompressed_data[x];
-                        if x - pixel_start > 3 && y > 0 {
-                            let west_pixel = decompressed_data[x-4];
-                            let result = pixel as u32 + ((west_pixel as u32 + pixel_above as u32) / 2) as u32;
-                            decompressed_data[x] = result as u8;
-                        } else {
-                            let result = (pixel as u32 + pixel_above as u32) / 2;
-                            decompressed_data[x] = result as u8;
-                        }
-                    } else if filter_type == 4 {
-                        // Paeth
-                        if x - pixel_start > 3 && y > 0 {
-                            let prev_x = x - row_size;
-                            let prev_prev_x = prev_x - 4;
-                            let upper_left = decompressed_data[prev_prev_x] as i32;
-                            let above = decompressed_data[prev_x] as i32;
-                            let left = decompressed_data[x - 4] as i32;
-
-                            let p: i32 = left + above - upper_left;
-                            let pa = (p - left).abs();
-                            let pb = (p - above).abs();
-                            let pc = (p - upper_left).abs();
-                            if pa <= pb && pa <= pc {
-                                decompressed_data[x] = (decompressed_data[x] as i32 + left as i32) as u8;
-                            } else if pb <= pc {
-                                decompressed_data[x] = (decompressed_data[x] as i32 + above as i32) as u8;
-                            } else {
-                                decompressed_data[x] = (decompressed_data[x] as i32 + upper_left as i32) as u8;
-                            }
-                        }
-                    }
-                    i+=1;
-                }
-            }
-
-            for y in 0..self.h {
-                self.pitch = row_size - 1;
-                let mut i = 0;
-                let mut pixels = Vec::new();
-                let row_start = y * row_size;
-                let pixel_start = row_start + 1;
-                while i < row_size - 1 {
-                    let x = pixel_start + i;
-                    pixels.push(Color::new(decompressed_data[x], decompressed_data[x + 1], decompressed_data[x + 2], decompressed_data[x + 3]));
-                    i+=4;
-                }
-
-                self.pixels.extend(pixels);
-            }
-
-        Ok(())
+        let prediction = (((self.w / 8) * self.bits_per_pixel) + ((self.w & 7) * self.bits_per_pixel + 7) / 8) * self.h;
+        deflate::decode(&compressed_data[..], || prediction)
     }
 
     fn parse_sbit(&mut self, data: &[u8]) {
