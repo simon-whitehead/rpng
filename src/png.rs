@@ -3,6 +3,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
+use color::Color;
 use color_type::ColorType;
 use deflate;
 use error::PngError;
@@ -23,24 +24,6 @@ const PNG_HEADER: [u8; 8] = [
 pub type PngLoadResult = Result<PngFile, PngError>;
 pub type PngParseResult = Result<(), String>;
 
-pub struct Color {
-    pub r: u8,
-    pub g: u8,
-    pub b: u8,
-    pub a: u8
-}
-
-impl Color {
-    pub fn new(r: u8, g: u8, b: u8, a: u8) -> Self {
-        Color {
-            r: r,
-            g: g,
-            b: b,
-            a: a
-        }
-    }
-}
-
 pub struct PngFile {
     pub w: usize,
     pub h: usize,
@@ -57,6 +40,8 @@ pub struct PngFile {
 
     pub pitch: usize,
     pub pixels: Vec<Color>,
+
+    pub palette: Vec<Color>,
 
     // sBIT
     significant_bits: [u8; 4],
@@ -82,6 +67,8 @@ impl PngFile {
 
             pitch: 0,
             pixels: Vec::new(),
+
+            palette: Vec::new(),
 
             significant_bits: [0; 4],
 
@@ -145,9 +132,15 @@ impl PngFile {
 
                 match chunk_type {
                     b"IDAT" => self.image_data_chunks.push(chunk_data.iter().cloned().collect()),
-                    b"sBIT" => self.parse_sbit(chunk_data),
+                    b"PLTE" => {
+                        if chunk_length % 3 == 0 {
+                            self.build_palette(&chunk_data);
+                        } else {
+                            return Err("Invalid palette length".to_string());
+                        }
+                    },
+                    b"sBIT" => self.parse_sbit(&chunk_data),
                     b"IEND" => { println!("Found end!"); break; },
-                    b"PLTE" => println!("found palette chunk"),
                     n => println!("Found chunk: {}", String::from_utf8(n.iter().cloned().collect()).unwrap())
                 };
 
@@ -306,6 +299,10 @@ impl PngFile {
 
         let prediction = (((self.w / 8) * self.bits_per_pixel) + ((self.w & 7) * self.bits_per_pixel + 7) / 8) * self.h;
         deflate::decode(&compressed_data[..], || prediction)
+    }
+
+    fn build_palette(&mut self, data: &[u8]) {
+
     }
 
     fn parse_sbit(&mut self, data: &[u8]) {

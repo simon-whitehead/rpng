@@ -1,3 +1,4 @@
+mod color;
 mod color_type;
 mod deflate;
 mod error;
