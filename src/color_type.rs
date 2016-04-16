@@ -4,7 +4,7 @@ use std::fmt;
 pub enum ColorType {
     Unknown,
     Greyscale,
-    Truecolor,
+    TrueColor,
     IndexedColor,
     GreyscaleWithAlpha,
     TrueColorWithAlpha
@@ -15,7 +15,7 @@ impl ColorType {
     /// valid according to the PNG spec.
     pub fn validate(&self, bit_depth: u8) -> Result<(), String> {
         if *self != ColorType::Greyscale &&
-           *self != ColorType::Truecolor &&
+           *self != ColorType::TrueColor &&
            *self != ColorType::IndexedColor &&
            *self != ColorType::GreyscaleWithAlpha &&
            *self != ColorType::TrueColorWithAlpha {
@@ -35,7 +35,7 @@ impl ColorType {
             return Err(color_type_bit_depth_err);
         }
 
-        if *self == ColorType::Truecolor && (
+        if *self == ColorType::TrueColor && (
             bit_depth != 8 &&
             bit_depth != 16
         ) {
@@ -74,10 +74,10 @@ impl fmt::Display for ColorType {
         match *self {
             ColorType::Unknown => write!(f, "Unknown"),
             ColorType::Greyscale => write!(f, "Greyscale"),
-            ColorType::Truecolor => write!(f, "Truecolor"),
+            ColorType::TrueColor => write!(f, "TrueColor"),
             ColorType::IndexedColor => write!(f, "Indexed-color"),
             ColorType::GreyscaleWithAlpha => write!(f, "Greyscale with alpha"),
-            ColorType::TrueColorWithAlpha => write!(f, "Truecolor with alpha")
+            ColorType::TrueColorWithAlpha => write!(f, "TrueColor with alpha")
         }
     }
 }
@@ -86,7 +86,7 @@ impl From<u8> for ColorType {
     fn from(b: u8) -> Self {
         match b {
             0 => ColorType::Greyscale,
-            2 => ColorType::Truecolor,
+            2 => ColorType::TrueColor,
             3 => ColorType::IndexedColor,
             4 => ColorType::GreyscaleWithAlpha,
             6 => ColorType::TrueColorWithAlpha,

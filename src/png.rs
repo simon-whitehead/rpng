@@ -48,6 +48,8 @@ pub struct PngFile {
     pub h: usize,
 
     bit_depth: u8,
+    bits_per_pixel: u8,
+    bytes_per_pixel: u8,
     color_type: ColorType,
     compression_method: u8,
     filter_method: u8,
@@ -71,6 +73,8 @@ impl PngFile {
             h: height,
 
             bit_depth: 0,
+            bits_per_pixel: 0,
+            bytes_per_pixel: 0,
             color_type: ColorType::Unknown,
             compression_method: 0,
             filter_method: 0,
@@ -132,6 +136,7 @@ impl PngFile {
         if ihdr == b"IHDR" {
             // Parse the IHDR chunk
             try!(self.parse_ihdr(&data[..]));
+            self.calculate_bpp();
 
             // We found an IHDR chunk... now lets just loop over every chunk we find and 
             // work with it
@@ -175,6 +180,33 @@ impl PngFile {
         self.advance(21); // The IHDR chunk data + the CRC
 
         Ok(())
+    }
+
+    /// Decides how many bits and bytes per pixel there are for this
+    /// image based on the ColorType
+    fn calculate_bpp(&mut self) {
+        match self.color_type {
+            ColorType::Unknown => {
+                self.bits_per_pixel = 0;
+            },
+            ColorType::Greyscale => {
+                self.bits_per_pixel = self.bits_per_pixel;
+            },
+            ColorType::TrueColor => {
+                self.bits_per_pixel = 24;
+            },
+            ColorType::IndexedColor => {
+                self.bits_per_pixel = self.bit_depth;
+            },
+            ColorType::GreyscaleWithAlpha => {
+                self.bits_per_pixel = 16;
+            },
+            ColorType::TrueColorWithAlpha => {
+                self.bits_per_pixel = 32;
+            } 
+        }
+
+        self.bytes_per_pixel = (self.bits_per_pixel + 7) / 8;
     }
 
     fn decode_pixel_data(&mut self) -> PngParseResult {
@@ -279,7 +311,7 @@ impl PngFile {
     fn parse_sbit(&mut self, data: &[u8]) {
         if self.color_type == ColorType::Greyscale {
             self.significant_bits[0] = data[0];
-        } else if self.color_type == ColorType::Truecolor || self.color_type == ColorType::IndexedColor {
+        } else if self.color_type == ColorType::TrueColor || self.color_type == ColorType::IndexedColor {
             self.significant_bits[0] = data[0];
             self.significant_bits[1] = data[1];
             self.significant_bits[2] = data[2];
