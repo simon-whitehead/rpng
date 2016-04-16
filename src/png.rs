@@ -251,21 +251,21 @@ impl PngFile {
                     // Paeth
                     if x - pixel_start > self.bytes_per_pixel - 1 && y > 0 {
                         let prev_x = x - row_size;
-                        let prev_prev_x = prev_x - 4;
+                        let prev_prev_x = prev_x - self.bytes_per_pixel;
                         let upper_left = pixels[prev_prev_x] as i32;
                         let above = pixels[prev_x] as i32;
-                        let left = pixels[x - 4] as i32;
+                        let left = pixels[x - self.bytes_per_pixel] as i32;
 
                         let p: i32 = left + above - upper_left;
                         let pa = (p - left).abs();
                         let pb = (p - above).abs();
                         let pc = (p - upper_left).abs();
                         if pa <= pb && pa <= pc {
-                            pixels[x] = (pixels[x] as i32 + left as i32) as u8;
+                            pixels[x] = ((pixels[x] as i32 + left as i32) % 256) as u8;
                         } else if pb <= pc {
-                            pixels[x] = (pixels[x] as i32 + above as i32) as u8;
+                            pixels[x] = ((pixels[x] as i32 + above as i32) % 256) as u8;
                         } else {
-                            pixels[x] = (pixels[x] as i32 + upper_left as i32) as u8;
+                            pixels[x] = ((pixels[x] as i32 + upper_left as i32) % 256) as u8;
                         }
                     }
                 }
@@ -281,8 +281,15 @@ impl PngFile {
             let pixel_start = row_start + 1;
             while i < row_size - 1 {
                 let x = pixel_start + i;
-                result.push(Color::new(pixels[x], pixels[x + 1], pixels[x + 2], pixels[x + 3]));
-                i+=4;
+                match self.bytes_per_pixel {
+                    4 => result.push(Color::new(pixels[x], pixels[x + 1], pixels[x + 2], pixels[x + 3])),
+                    3 => result.push(Color::new(pixels[x], pixels[x + 1], pixels[x + 2], 255)),
+                    2 => result.push(Color::new(pixels[x], pixels[x], pixels[x], 255)),
+                    1 => result.push(Color::new(pixels[x], pixels[x], pixels[x], pixels[x])), // LOOKUP PALLETTE
+                    _ => ()
+                }
+                
+                i += self.bytes_per_pixel;
             }
 
             self.pixels.extend(result);
