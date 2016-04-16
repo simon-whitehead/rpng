@@ -1,3 +1,4 @@
+use std::fmt;
 
 pub struct Color {
     pub r: u8,
@@ -32,5 +33,12 @@ impl Clone for Color {
         self.g = source.g;
         self.b = source.b;
         self.a = source.a;
+    }
+}
+
+impl fmt::Debug for Color {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "R: {}, G: {}, B: {}, A: {}", self.r, self.g, self.b, self.a);
+        Ok(())
     }
 }

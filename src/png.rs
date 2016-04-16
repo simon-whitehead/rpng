@@ -201,91 +201,121 @@ impl PngFile {
 
     fn decode_pixel_data(&mut self) -> PngParseResult {
         let mut pixels = try!(self.get_pixel_data());
-
         let row_size = 1 + (self.bits_per_pixel * self.w + 7) / 8;
-        for y in 0..self.h {
-            self.pitch = row_size - 1;
-            let mut i = 0;
-            let row_start = y * row_size;
-            let filter_type = pixels[row_start];
-            let pixel_start = row_start + 1;
-            // Apply the filters
-            while i < row_size - 1 {
-                let x = pixel_start + i;
-                if filter_type == 1 {
-                    if x - pixel_start > self.bytes_per_pixel - 1 {
-                        let result = pixels[x] as u32 + pixels[x - self.bytes_per_pixel] as u32;
-                        pixels[x] = result as u8;
-                    }
-                } else if filter_type == 2 {
-                    if y > 0 {
-                        let prev_x = x - row_size;
-                        let pixel_above = pixels[prev_x];
-                        let pixel = pixels[x];
+        println!("Interlace method: {}", self.interlace_method);
+        //println!("Row size: {}, Width: {}, Height: {}, Bit depth: {}, Bits per pixel: {}, Bytes per pixel: {}", row_size, self.w, self.h, self.bit_depth, self.bits_per_pixel, self.bytes_per_pixel);
 
-                        let result = pixel as u32 + pixel_above as u32;
+        self.pitch = row_size - 1;
 
-                        pixels[x] = result as u8;
-                    }
-                } else if filter_type == 3 {
-                    let prev_x = x - row_size;
-                    let pixel_above = pixels[prev_x];
-                    let pixel = pixels[x];
-                    if x - pixel_start > self.bytes_per_pixel - 1 && y > 0 {
-                        let west_pixel = pixels[x - self.bytes_per_pixel];
-                        let result = pixel as u32 + ((west_pixel as u32 + pixel_above as u32) / 2) as u32;
-                        pixels[x] = result as u8;
-                    } else {
-                        let result = (pixel as u32 + pixel_above as u32) / 2;
-                        pixels[x] = result as u8;
-                    }
-                } else if filter_type == 4 {
-                    // Paeth
-                    if x - pixel_start > self.bytes_per_pixel - 1 && y > 0 {
-                        let prev_x = x - row_size;
-                        let prev_prev_x = prev_x - self.bytes_per_pixel;
-                        let upper_left = pixels[prev_prev_x] as i32;
-                        let above = pixels[prev_x] as i32;
-                        let left = pixels[x - self.bytes_per_pixel] as i32;
-
-                        let p: i32 = left + above - upper_left;
-                        let pa = (p - left).abs();
-                        let pb = (p - above).abs();
-                        let pc = (p - upper_left).abs();
-                        if pa <= pb && pa <= pc {
-                            pixels[x] = ((pixels[x] as i32 + left as i32) % 256) as u8;
-                        } else if pb <= pc {
-                            pixels[x] = ((pixels[x] as i32 + above as i32) % 256) as u8;
-                        } else {
-                            pixels[x] = ((pixels[x] as i32 + upper_left as i32) % 256) as u8;
+        match self.color_type {
+            ColorType::IndexedColor => {
+                for y in 0..self.h {
+                    let row_start = y * row_size;
+                    let filter_type = pixels[row_start];
+                    let pixel_start = row_start + 1;
+                    let mut x = 0;
+                    for i in 0..row_size - 1 {
+                        let x = pixel_start + i;
+                        let val = pixels[x/2] as u8;
+                        match self.bit_depth {
+                            4 => {
+                                let idx = helpers::extract_4bit(val, x as u32);
+                                self.pixels.push(self.palette[idx as usize].clone());
+                                let idx2 = helpers::extract_4bit(val, (x + 1) as u32);
+                                self.pixels.push(self.palette[idx2 as usize].clone());
+                            },
+                            _ => unimplemented!()
                         }
                     }
                 }
-                i+=1;
-            }
-        }
+            },
+            ColorType::TrueColorWithAlpha => {
+                for y in 0..self.h {
+                    let mut i = 0;
+                    let row_start = y * row_size;
+                    let filter_type = pixels[row_start];
+                    let pixel_start = row_start + 1;
+                    // Apply the filters
+                    while i < row_size - 1 {
+                        let x = pixel_start + i;
+                        if filter_type == 1 {
+                            if x - pixel_start > self.bytes_per_pixel - 1 {
+                                let result = pixels[x] as u32 + pixels[x - self.bytes_per_pixel] as u32;
+                                pixels[x] = result as u8;
+                            }
+                        } else if filter_type == 2 {
+                            if y > 0 {
+                                let prev_x = x - row_size;
+                                let pixel_above = pixels[prev_x];
+                                let pixel = pixels[x];
 
-        for y in 0..self.h {
-            self.pitch = row_size - 1;
-            let mut i = 0;
-            let mut result = Vec::new();
-            let row_start = y * row_size;
-            let pixel_start = row_start + 1;
-            while i < row_size - 1 {
-                let x = pixel_start + i;
-                match self.bytes_per_pixel {
-                    4 => result.push(Color::new(pixels[x], pixels[x + 1], pixels[x + 2], pixels[x + 3])),
-                    3 => result.push(Color::new(pixels[x], pixels[x + 1], pixels[x + 2], 255)),
-                    2 => result.push(Color::new(pixels[x], pixels[x], pixels[x], 255)),
-                    1 => result.push(Color::new(pixels[x], pixels[x], pixels[x], pixels[x])), // LOOKUP PALLETTE
-                    _ => ()
+                                let result = pixel as u32 + pixel_above as u32;
+
+                                pixels[x] = result as u8;
+                            }
+                        } else if filter_type == 3 {
+                            let prev_x = x - row_size;
+                            let pixel_above = pixels[prev_x];
+                            let pixel = pixels[x];
+                            if x - pixel_start > self.bytes_per_pixel - 1 && y > 0 {
+                                let west_pixel = pixels[x - self.bytes_per_pixel];
+                                let result = pixel as u32 + ((west_pixel as u32 + pixel_above as u32) / 2) as u32;
+                                pixels[x] = result as u8;
+                            } else {
+                                let result = (pixel as u32 + pixel_above as u32) / 2;
+                                pixels[x] = result as u8;
+                            }
+                        } else if filter_type == 4 {
+                            // Paeth
+                            if x - pixel_start > self.bytes_per_pixel - 1 && y > 0 {
+                                let prev_x = x - row_size;
+                                let prev_prev_x = prev_x - self.bytes_per_pixel;
+                                let upper_left = pixels[prev_prev_x] as i32;
+                                let above = pixels[prev_x] as i32;
+                                let left = pixels[x - self.bytes_per_pixel] as i32;
+
+                                let p: i32 = left + above - upper_left;
+                                let pa = (p - left).abs();
+                                let pb = (p - above).abs();
+                                let pc = (p - upper_left).abs();
+                                if pa <= pb && pa <= pc {
+                                    pixels[x] = ((pixels[x] as i32 + left as i32) % 256) as u8;
+                                } else if pb <= pc {
+                                    pixels[x] = ((pixels[x] as i32 + above as i32) % 256) as u8;
+                                } else {
+                                    pixels[x] = ((pixels[x] as i32 + upper_left as i32) % 256) as u8;
+                                }
+                            }
+                        }
+                        i+=1;
+                    }
                 }
-                
-                i += self.bytes_per_pixel;
-            }
 
-            self.pixels.extend(result);
-        }
+                for y in 0..self.h {
+                    self.pitch = row_size - 1;
+                    let mut i = 0;
+                    let mut result = Vec::new();
+                    let row_start = y * row_size;
+                    let pixel_start = row_start + 1;
+                    while i < row_size - 1 {
+                        let x = pixel_start + i;
+                        match self.bytes_per_pixel {
+                            4 => result.push(Color::new(pixels[x], pixels[x + 1], pixels[x + 2], pixels[x + 3])),
+                            3 => result.push(Color::new(pixels[x], pixels[x + 1], pixels[x + 2], 255)),
+                            2 => result.push(Color::new(pixels[x], pixels[x], pixels[x], 255)),
+                            1 => result.push(Color::new(pixels[x], pixels[x], pixels[x], pixels[x])), // LOOKUP PALLETTE
+                            _ => ()
+                        }
+                        
+                        i += self.bytes_per_pixel;
+                    }
+
+                    self.pixels.extend(result);
+                }
+            },
+            _ => unimplemented!()
+        };
+
 
         Ok(())
     }
@@ -302,7 +332,13 @@ impl PngFile {
     }
 
     fn build_palette(&mut self, data: &[u8]) {
+       let mut i = 0;
+       while i < data.len() {
+           let pixel = Color::new(data[i], data[i + 1], data[i + 2], 255);
+           self.palette.push(pixel);
 
+           i += 3;
+       }
     }
 
     fn parse_sbit(&mut self, data: &[u8]) {

@@ -5,7 +5,7 @@ fn main() {
     let context = sdl2::init().unwrap();
     let video = context.video().unwrap();
     let mut events = context.event_pump().unwrap();
-    let window = video.window("rPNG test window", 800, 600)
+    let window = video.window("rPNG test window", 1440, 900)
         .position_centered().opengl()
         .build().unwrap();
 
@@ -14,21 +14,14 @@ fn main() {
     .build().unwrap();
 
 
-    match rpng::PngFile::from_path("/Users/Simon/Pictures/basn6a08.png") {
+    match rpng::PngFile::from_path("/Users/Simon/vslogo.png") {
         Err(error) => println!("Error loading PNG: {:?}", error),
         Ok(png) =>  {
-            let mut texture = renderer.create_texture(sdl2::pixels::PixelFormatEnum::RGBA8888, sdl2::render::TextureAccess::Static, png.w as u32, png.h as u32).unwrap();
+            let mut texture = renderer.create_texture(sdl2::pixels::PixelFormatEnum::RGB888, sdl2::render::TextureAccess::Static, png.w as u32, png.h as u32).unwrap();
 
-            let mut pdata = Vec::new();
-            println!("Pixels: {}", png.pixels.len());
-            for pixel in &png.pixels {
-                pdata.push(pixel.a);
-                pdata.push(pixel.b);
-                pdata.push(pixel.g);
-                pdata.push(pixel.r);
-            }
+            println!("Width: {}, Height: {}, Pixels: {}", png.w, png.h, png.pixels.len());
 
-            texture.set_blend_mode(sdl2::render::BlendMode::Blend);
+            renderer.set_blend_mode(sdl2::render::BlendMode::Blend);
 
             'out:
             loop {
@@ -44,13 +37,14 @@ fn main() {
 
                 renderer.set_draw_color(sdl2::pixels::Color::RGB(0,0,0));
                 renderer.clear();
-
-                match texture.update(None, &pdata[..], png.pitch) {
-                    Err(err) => println!("ERR: {:?}", err),
-                    Ok(_) => ()
+                
+                for y in 0..png.h {
+                    for x in 0..png.w {
+                        let p = &png.pixels[y * x + x];
+                        renderer.set_draw_color(sdl2::pixels::Color::RGB(p.r, p.g, p.b));
+                        renderer.draw_point(sdl2::rect::Point::new(x as i32, y as i32));
+                    }
                 }
-
-                renderer.copy(&texture, None, Some(sdl2::rect::Rect::new(0, 0, png.w as u32, png.h as u32)));
 
                 renderer.present();
             }
