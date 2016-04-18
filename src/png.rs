@@ -7,6 +7,7 @@ use color::Color;
 use color_type::ColorType;
 use deflate;
 use error::PngError;
+use filters::{Filter, Sub};
 use helpers;
 use ihdr;
 
@@ -30,7 +31,7 @@ pub struct PngFile {
 
     bit_depth: usize,
     bits_per_pixel: usize,
-    bytes_per_pixel: usize,
+    pub bytes_per_pixel: usize,
     color_type: ColorType,
     compression_method: u8,
     filter_method: u8,
@@ -202,11 +203,6 @@ impl PngFile {
     fn decode_pixel_data(&mut self) -> PngParseResult {
         let mut pixels = try!(self.get_pixel_data());
         let row_size = 1 + (self.bits_per_pixel * self.w + 7) / 8;
-        println!("Interlace method: {}", self.interlace_method);
-        println!("Row size: {}, Height: {}", row_size, self.h);
-        println!("Pixels: {}", pixels.len());
-        //println!("Row size: {}, Width: {}, Height: {}, Bit depth: {}, Bits per pixel: {}, Bytes per pixel: {}", row_size, self.w, self.h, self.bit_depth, self.bits_per_pixel, self.bytes_per_pixel);
-
         self.pitch = row_size - 1;
 
         match self.color_type {
@@ -245,15 +241,14 @@ impl PngFile {
                     let row_start = y * row_size;
                     let filter_type = pixels[row_start];
                     let pixel_start = row_start + 1;
+                    match filter_type {
+                        1 => self.apply_row_filter(&mut pixels[..], pixel_start, &Sub),
+                        _ => ()
+                    }
                     // Apply the filters
                     while i < row_size - 1 {
                         let x = pixel_start + i;
-                        if filter_type == 1 {
-                            if x - pixel_start > self.bytes_per_pixel - 1 {
-                                let result = pixels[x] as u32 + pixels[x - self.bytes_per_pixel] as u32;
-                                pixels[x] = result as u8;
-                            }
-                        } else if filter_type == 2 {
+                        if filter_type == 2 {
                             if y > 0 {
                                 let prev_x = x - row_size;
                                 let pixel_above = pixels[prev_x];
@@ -328,6 +323,10 @@ impl PngFile {
 
 
         Ok(())
+    }
+
+    fn apply_row_filter(&self, row: &mut [u8], start: usize, filter: &Filter) {
+        filter.apply(row, start, &self);
     }
 
     fn get_pixel_data(&mut self) -> Result<Vec<u8>, String> {

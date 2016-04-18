@@ -14,7 +14,7 @@ fn main() {
     .build().unwrap();
 
 
-    match rpng::PngFile::from_path("/Users/Simon/vslogo.png") {
+    match rpng::PngFile::from_path("/Users/Simon/ship.png") {
         Err(error) => println!("Error loading PNG: {:?}", error),
         Ok(png) =>  {
             let mut texture = renderer.create_texture(sdl2::pixels::PixelFormatEnum::RGB888, sdl2::render::TextureAccess::Static, png.w as u32, png.h as u32).unwrap();

@@ -2,6 +2,7 @@ mod color;
 mod color_type;
 mod deflate;
 mod error;
+mod filters;
 mod helpers;
 mod ihdr;
 mod png;
