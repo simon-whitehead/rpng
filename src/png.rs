@@ -203,30 +203,40 @@ impl PngFile {
         let mut pixels = try!(self.get_pixel_data());
         let row_size = 1 + (self.bits_per_pixel * self.w + 7) / 8;
         println!("Interlace method: {}", self.interlace_method);
+        println!("Row size: {}, Height: {}", row_size, self.h);
+        println!("Pixels: {}", pixels.len());
         //println!("Row size: {}, Width: {}, Height: {}, Bit depth: {}, Bits per pixel: {}, Bytes per pixel: {}", row_size, self.w, self.h, self.bit_depth, self.bits_per_pixel, self.bytes_per_pixel);
 
         self.pitch = row_size - 1;
 
         match self.color_type {
             ColorType::IndexedColor => {
+                let mut lookup = Vec::new();
                 for y in 0..self.h {
                     let row_start = y * row_size;
                     let filter_type = pixels[row_start];
                     let pixel_start = row_start + 1;
                     let mut x = 0;
-                    for i in 0..row_size - 1 {
-                        let x = pixel_start + i;
-                        let val = pixels[x/2] as u8;
-                        match self.bit_depth {
-                            4 => {
-                                let idx = helpers::extract_4bit(val, x as u32);
-                                self.pixels.push(self.palette[idx as usize].clone());
-                                let idx2 = helpers::extract_4bit(val, (x + 1) as u32);
-                                self.pixels.push(self.palette[idx2 as usize].clone());
-                            },
-                            _ => unimplemented!()
-                        }
+                    match self.bit_depth {
+                        4 => {
+                            while x < row_size - 1 {
+                                let mut val = pixels[pixel_start + x] as u8;
+                                let left = val >> 4;
+                                let right = val & 0x0f;
+                            
+                                lookup.push(left);
+                                lookup.push(right);
+
+                                x += 1;
+                            }
+                        },
+                        _ => unimplemented!()
                     }
+                }
+
+                for i in 0..lookup.len() {
+                    let pixel = self.palette[lookup[i] as usize].clone();
+                    self.pixels.push(pixel);
                 }
             },
             ColorType::TrueColorWithAlpha => {
