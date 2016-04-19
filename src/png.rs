@@ -201,6 +201,8 @@ impl PngFile {
         self.bytes_per_pixel = (self.bits_per_pixel + 7) / 8;
     }
 
+    /// Decodes concatenated IDAT chunks and converts the raw
+    /// data into a Vector of Color objects
     fn decode_pixel_data(&mut self) -> PngParseResult {
         let mut pixels = try!(self.get_pixel_data());
         let row_size = 1 + (self.bits_per_pixel * self.w + 7) / 8;
@@ -208,63 +210,6 @@ impl PngFile {
 
         self.apply_filters(&mut pixels, row_size);
         self.pixels = self.build_pixels(&mut pixels, row_size);
-
-        /*match self.color_type {
-            ColorType::IndexedColor => {
-                let mut lookup = Vec::new();
-                for y in 0..self.h {
-                    let row_start = y * row_size;
-                    let filter_type = pixels[row_start];
-                    let pixel_start = row_start + 1;
-                    let mut x = 0;
-                    match self.bit_depth {
-                        4 => {
-                            while x < row_size - 1 {
-                                let mut val = pixels[pixel_start + x] as u8;
-                                let left = val >> 4;
-                                let right = val & 0x0f;
-                            
-                                lookup.push(left);
-                                lookup.push(right);
-
-                                x += 1;
-                            }
-                        },
-                        _ => unimplemented!()
-                    }
-                }
-
-                for i in 0..lookup.len() {
-                    let pixel = self.palette[lookup[i] as usize].clone();
-                    self.pixels.push(pixel);
-                }
-            },
-            ColorType::TrueColorWithAlpha => {
-
-                for y in 0..self.h {
-                    let mut i = 0;
-                    let mut result = Vec::new();
-                    let row_start = y * row_size;
-                    let pixel_start = row_start + 1;
-                    while i < row_size - 1 {
-                        let x = pixel_start + i;
-                        match self.bytes_per_pixel {
-                            4 => result.push(Color::new(pixels[x], pixels[x + 1], pixels[x + 2], pixels[x + 3])),
-                            3 => result.push(Color::new(pixels[x], pixels[x + 1], pixels[x + 2], 255)),
-                            2 => result.push(Color::new(pixels[x], pixels[x], pixels[x], 255)),
-                            1 => result.push(Color::new(pixels[x], pixels[x], pixels[x], pixels[x])), // LOOKUP PALLETTE
-                            _ => ()
-                        }
-                        
-                        i += self.bytes_per_pixel;
-                    }
-
-                    self.pixels.extend(result);
-                }
-            },
-            _ => unimplemented!()
-        };*/
-
 
         Ok(())
     }
