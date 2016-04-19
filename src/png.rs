@@ -284,16 +284,12 @@ impl PngFile {
                     _ => unreachable!()
                 };
 
-            self.apply_scanline_filter(
+            filter.apply(
                 &mut pixels[..], 
                 pixel_start,
-                filter
+                &self
             );
         }
-    }
-
-    fn apply_scanline_filter(&self, scanline: &mut [u8], start: usize, filter: Box<Filter>) {
-        filter.apply(scanline, start, &self);
     }
 
     fn get_pixel_data(&mut self) -> Result<Vec<u8>, String> {
