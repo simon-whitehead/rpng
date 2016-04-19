@@ -5,7 +5,15 @@ use std::path::Path;
 
 use color::Color;
 use color_type::ColorType;
-use decoders::{PixelDecoder, TwoBitIndexedColorDecoder, FourBitIndexedColorDecoder, EightBitIndexedColorDecoder, EightBitTrueColorWithAlphaDecoder};
+use decoders::{
+    PixelDecoder,
+    OneBitIndexedColorDecoder,
+    TwoBitIndexedColorDecoder,
+    FourBitIndexedColorDecoder,
+    EightBitIndexedColorDecoder,
+    EightBitTrueColorWithAlphaDecoder
+};
+
 use deflate;
 use error::PngError;
 use filters::{Filter, NoFilter, Sub, Up, Average, Paeth};
@@ -243,6 +251,7 @@ impl PngFile {
     fn build_pixels(&self, pixels: &mut [u8], row_size: usize) -> Vec<Color> {
         let decoder: Box<PixelDecoder> = 
             match (&self.color_type, self.bit_depth) {
+                (&ColorType::IndexedColor, 1) => Box::new(OneBitIndexedColorDecoder),
                 (&ColorType::IndexedColor, 2) => Box::new(TwoBitIndexedColorDecoder),
                 (&ColorType::IndexedColor, 4) => Box::new(FourBitIndexedColorDecoder),
                 (&ColorType::IndexedColor, 8) => Box::new(EightBitIndexedColorDecoder),
