@@ -2,21 +2,26 @@ extern crate sdl2;
 extern crate rpng;
 
 fn main() {
-    let context = sdl2::init().unwrap();
-    let video = context.video().unwrap();
-    let mut events = context.event_pump().unwrap();
-    let window = video.window("rPNG test window", 1440, 900)
-        .position_centered().opengl()
-        .build().unwrap();
-
-    let mut renderer = window.renderer()
-    .accelerated()
-    .build().unwrap();
 
 
     match rpng::PngFile::from_path(std::env::args().nth(1).unwrap()) {
         Err(error) => println!("Error loading PNG: {:?}", error),
         Ok(png) =>  {
+
+            let window_width = std::cmp::max(400, png.w as u32);
+            let window_height = std::cmp::max(400, png.h as u32);
+
+            let context = sdl2::init().unwrap();
+            let video = context.video().unwrap();
+            let mut events = context.event_pump().unwrap();
+            let window = video.window("rPNG test window", window_width, window_height)
+                .position_centered().opengl()
+                .build().unwrap();
+
+            let mut renderer = window.renderer()
+            .accelerated()
+            .build().unwrap();
+
             let mut texture = renderer.create_texture(sdl2::pixels::PixelFormatEnum::RGB888, sdl2::render::TextureAccess::Static, png.w as u32, png.h as u32).unwrap();
 
             println!("Width: {}, Height: {}, Pixels: {}", png.w, png.h, png.pixels.len());
