@@ -31,7 +31,7 @@ pub struct PngFile {
     pub h: usize,
 
     bit_depth: usize,
-    bits_per_pixel: usize,
+    pub bits_per_pixel: usize,
     pub bytes_per_pixel: usize,
     color_type: ColorType,
     compression_method: u8,
