@@ -142,8 +142,8 @@ impl PngFile {
                         }
                     },
                     b"sBIT" => self.parse_sbit(&chunk_data),
-                    b"IEND" => { println!("Found end!"); break; },
-                    n => println!("Found chunk: {}", String::from_utf8(n.iter().cloned().collect()).unwrap())
+                    b"IEND" => { break; },
+                    n => /*println!("Found chunk: {}", String::from_utf8(n.iter().cloned().collect()).unwrap())*/()
                 };
 
                 self.advance(chunk_data.len() + 0x0C); // The chunk length, type, data and CRC
