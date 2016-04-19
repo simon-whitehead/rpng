@@ -28,8 +28,19 @@ impl Filter for Sub {
     }
 }
 
-// pub struct Up;
-// impl Filter for Up {
-//     fn filter(&self, data: &mut [u8], row_size: u32) {
-//     }
-// }
+pub struct Up;
+impl Filter for Up {
+    fn apply(&self, data: &mut [u8], start: usize, png: &PngFile) {
+        let mut i = 0;
+        while i < png.pitch {
+            let x = start + i;
+            let prev_x = x - (png.pitch + 1); // +1 for the filter type on the row
+            let pixel_above = data[prev_x];
+            let pixel = data[x];
+
+            data[x] = (pixel as u16 + pixel_above as u16) as u8;
+
+            i += 1;
+        }
+    }
+}

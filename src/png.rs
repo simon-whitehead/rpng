@@ -7,7 +7,7 @@ use color::Color;
 use color_type::ColorType;
 use deflate;
 use error::PngError;
-use filters::{Filter, Sub};
+use filters::{Filter, Sub, Up};
 use helpers;
 use ihdr;
 
@@ -243,22 +243,13 @@ impl PngFile {
                     let pixel_start = row_start + 1;
                     match filter_type {
                         1 => self.apply_row_filter(&mut pixels[..], pixel_start, &Sub),
+                        2 if y > 0 => self.apply_row_filter(&mut pixels[..], pixel_start, &Up),
                         _ => ()
                     }
                     // Apply the filters
                     while i < row_size - 1 {
                         let x = pixel_start + i;
-                        if filter_type == 2 {
-                            if y > 0 {
-                                let prev_x = x - row_size;
-                                let pixel_above = pixels[prev_x];
-                                let pixel = pixels[x];
-
-                                let result = pixel as u32 + pixel_above as u32;
-
-                                pixels[x] = result as u8;
-                            }
-                        } else if filter_type == 3 {
+                        if filter_type == 3 {
                             let prev_x = x - row_size;
                             let pixel_above = pixels[prev_x];
                             let pixel = pixels[x];
