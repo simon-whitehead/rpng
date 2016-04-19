@@ -44,3 +44,26 @@ impl Filter for Up {
         }
     }
 }
+
+pub struct Average;
+impl Filter for Average {
+    fn apply(&self, data: &mut [u8], start: usize, png: &PngFile) {
+        let mut i = 0;
+        while i < png.pitch {
+            let x = start + i;
+            let prev_x = x - (png.pitch + 1); // +1 for the filter type on the row
+            let pixel_above = data[prev_x] as u32;
+            let pixel = data[x] as u32;
+            //
+            // Ensure we have room to perform the filter
+            if x - start > png.bytes_per_pixel - 1 {
+                let pixel_left = data[x - png.bytes_per_pixel] as u32;
+                data[x] = (pixel + (pixel_left + pixel_above / 2)) as u8;
+            } else {
+                data[x] = ((pixel + pixel_above) / 2) as u8;
+            }
+
+            i += 1;
+        }
+    }
+}
