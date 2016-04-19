@@ -268,6 +268,8 @@ impl PngFile {
         Ok(())
     }
 
+    /// Applies scanline filtering depending on the filter type
+    /// that is specified at the start of each row.
     fn apply_filters(&self, pixels: &mut [u8], row_size: usize) {
         for y in 0..self.h {
             let mut i = 0;
