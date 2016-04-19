@@ -6,6 +6,41 @@ pub trait PixelDecoder {
     fn decode(&self, data: &[u8], png: &PngFile) -> Vec<Color>;
 }
 
+pub struct TwoBitIndexedColorDecoder;
+impl PixelDecoder for TwoBitIndexedColorDecoder {
+    fn decode(&self, data: &[u8], png: &PngFile) -> Vec<Color> {
+        let mut pixels = Vec::new();
+        let mut lookup = Vec::new();
+
+        for y in 0..png.h {
+            let mut x = 0;
+            let row_start = y * (png.pitch + 1);
+            let pixel_start = row_start + 1;
+            while x < png.pitch {
+                let mut val = data[pixel_start + x] as u8;
+                let far_left = val >> 6;
+                let left = (val >> 4) & 0x03;
+                let right = (val >> 2) & 0x03;
+                let far_right = val & 0x03;
+            
+                lookup.push(far_left);
+                lookup.push(left);
+                lookup.push(right);
+                lookup.push(far_right);
+
+                x += 0x01; // 1 byte
+            }
+        }
+
+        for i in 0..lookup.len() {
+            let pixel = png.palette[lookup[i] as usize].clone();
+            pixels.push(pixel);
+        }
+
+        pixels
+    }
+}
+
 pub struct FourBitIndexedColorDecoder;
 impl PixelDecoder for FourBitIndexedColorDecoder {
     fn decode(&self, data: &[u8], png: &PngFile) -> Vec<Color> {
