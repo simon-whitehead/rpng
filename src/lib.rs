@@ -1,5 +1,6 @@
 mod color;
 mod color_type;
+mod decoders;
 mod deflate;
 mod error;
 mod filters;

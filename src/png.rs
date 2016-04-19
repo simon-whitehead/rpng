@@ -5,6 +5,7 @@ use std::path::Path;
 
 use color::Color;
 use color_type::ColorType;
+use decoders::{PixelDecoder, FourBitIndexedColorDecoder, EightBitTrueColorWithAlphaDecoder};
 use deflate;
 use error::PngError;
 use filters::{Filter, NoFilter, Sub, Up, Average, Paeth};
@@ -206,8 +207,9 @@ impl PngFile {
         self.pitch = row_size - 1;
 
         self.apply_filters(&mut pixels, row_size);
+        self.pixels = self.build_pixels(&mut pixels, row_size);
 
-        match self.color_type {
+        /*match self.color_type {
             ColorType::IndexedColor => {
                 let mut lookup = Vec::new();
                 for y in 0..self.h {
@@ -240,7 +242,6 @@ impl PngFile {
             ColorType::TrueColorWithAlpha => {
 
                 for y in 0..self.h {
-                    self.pitch = row_size - 1;
                     let mut i = 0;
                     let mut result = Vec::new();
                     let row_start = y * row_size;
@@ -262,7 +263,7 @@ impl PngFile {
                 }
             },
             _ => unimplemented!()
-        };
+        };*/
 
 
         Ok(())
@@ -292,6 +293,20 @@ impl PngFile {
                 &self
             );
         }
+    }
+
+    fn build_pixels(&self, pixels: &mut [u8], row_size: usize) -> Vec<Color> {
+        let decoder: Box<PixelDecoder> = 
+            match (&self.color_type, self.bit_depth) {
+                (&ColorType::IndexedColor, 4) => Box::new(FourBitIndexedColorDecoder),
+                (&ColorType::TrueColorWithAlpha, 8) => Box::new(EightBitTrueColorWithAlphaDecoder),
+                _ => unreachable!()
+            };
+
+        decoder.decode(
+            &mut pixels[..],
+            &self
+        )
     }
 
     fn get_pixel_data(&mut self) -> Result<Vec<u8>, String> {
