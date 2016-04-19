@@ -7,7 +7,7 @@ use color::Color;
 use color_type::ColorType;
 use deflate;
 use error::PngError;
-use filters::{Filter, Sub, Up, Average};
+use filters::{Filter, NoFilter, Sub, Up, Average, Paeth};
 use helpers;
 use ihdr;
 
@@ -205,6 +205,8 @@ impl PngFile {
         let row_size = 1 + (self.bits_per_pixel * self.w + 7) / 8;
         self.pitch = row_size - 1;
 
+        self.apply_filters(&mut pixels, row_size);
+
         match self.color_type {
             ColorType::IndexedColor => {
                 let mut lookup = Vec::new();
@@ -236,45 +238,6 @@ impl PngFile {
                 }
             },
             ColorType::TrueColorWithAlpha => {
-                for y in 0..self.h {
-                    let mut i = 0;
-                    let row_start = y * row_size;
-                    let filter_type = pixels[row_start];
-                    let pixel_start = row_start + 1;
-                    match filter_type {
-                        1 => self.apply_row_filter(&mut pixels[..], pixel_start, &Sub),
-                        2 if y > 0 => self.apply_row_filter(&mut pixels[..], pixel_start, &Up),
-                        3 if y > 0 => self.apply_row_filter(&mut pixels[..], pixel_start, &Average),
-                        _ => ()
-                    }
-                    // Apply the filters
-                    while i < row_size - 1 {
-                        let x = pixel_start + i;
-                        if filter_type == 4 {
-                            // Paeth
-                            if x - pixel_start > self.bytes_per_pixel - 1 && y > 0 {
-                                let prev_x = x - row_size;
-                                let prev_prev_x = prev_x - self.bytes_per_pixel;
-                                let upper_left = pixels[prev_prev_x] as i32;
-                                let above = pixels[prev_x] as i32;
-                                let left = pixels[x - self.bytes_per_pixel] as i32;
-
-                                let p: i32 = left + above - upper_left;
-                                let pa = (p - left).abs();
-                                let pb = (p - above).abs();
-                                let pc = (p - upper_left).abs();
-                                if pa <= pb && pa <= pc {
-                                    pixels[x] = ((pixels[x] as i32 + left as i32) % 256) as u8;
-                                } else if pb <= pc {
-                                    pixels[x] = ((pixels[x] as i32 + above as i32) % 256) as u8;
-                                } else {
-                                    pixels[x] = ((pixels[x] as i32 + upper_left as i32) % 256) as u8;
-                                }
-                            }
-                        }
-                        i+=1;
-                    }
-                }
 
                 for y in 0..self.h {
                     self.pitch = row_size - 1;
@@ -305,8 +268,32 @@ impl PngFile {
         Ok(())
     }
 
-    fn apply_row_filter(&self, row: &mut [u8], start: usize, filter: &Filter) {
-        filter.apply(row, start, &self);
+    fn apply_filters(&self, pixels: &mut [u8], row_size: usize) {
+        for y in 0..self.h {
+            let mut i = 0;
+            let row_start = y * row_size;
+            let filter_type = pixels[row_start];
+            let pixel_start = row_start + 1;
+            let filter: Box<Filter> = 
+                match filter_type {
+                    0 => Box::new(NoFilter),
+                    1 => Box::new(Sub),
+                    2 if y > 0 => Box::new(Up),
+                    3 if y > 0 => Box::new(Average),
+                    4 if y > 0 => Box::new(Paeth),
+                    _ => unreachable!()
+                };
+
+            self.apply_scanline_filter(
+                &mut pixels[..], 
+                pixel_start,
+                filter
+            );
+        }
+    }
+
+    fn apply_scanline_filter(&self, scanline: &mut [u8], start: usize, filter: Box<Filter>) {
+        filter.apply(scanline, start, &self);
     }
 
     fn get_pixel_data(&mut self) -> Result<Vec<u8>, String> {
