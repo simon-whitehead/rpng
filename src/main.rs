@@ -8,6 +8,7 @@ fn main() {
         Err(error) => println!("Error loading PNG: {:?}", error),
         Ok(png) =>  {
 
+            // A minimum width and height for the Window
             let window_width = std::cmp::max(400, png.w as u32);
             let window_height = std::cmp::max(400, png.h as u32);
 

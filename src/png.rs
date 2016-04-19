@@ -5,7 +5,7 @@ use std::path::Path;
 
 use color::Color;
 use color_type::ColorType;
-use decoders::{PixelDecoder, FourBitIndexedColorDecoder, EightBitTrueColorWithAlphaDecoder};
+use decoders::{PixelDecoder, FourBitIndexedColorDecoder, EightBitIndexedColorDecoder, EightBitTrueColorWithAlphaDecoder};
 use deflate;
 use error::PngError;
 use filters::{Filter, NoFilter, Sub, Up, Average, Paeth};
@@ -244,6 +244,7 @@ impl PngFile {
         let decoder: Box<PixelDecoder> = 
             match (&self.color_type, self.bit_depth) {
                 (&ColorType::IndexedColor, 4) => Box::new(FourBitIndexedColorDecoder),
+                (&ColorType::IndexedColor, 8) => Box::new(EightBitIndexedColorDecoder),
                 (&ColorType::TrueColorWithAlpha, 8) => Box::new(EightBitTrueColorWithAlphaDecoder),
                 _ => unreachable!()
             };

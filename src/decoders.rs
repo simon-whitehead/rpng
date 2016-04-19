@@ -37,6 +37,32 @@ impl PixelDecoder for FourBitIndexedColorDecoder {
     }
 }
 
+pub struct EightBitIndexedColorDecoder;
+impl PixelDecoder for EightBitIndexedColorDecoder {
+    fn decode(&self, data: &[u8], png: &PngFile) -> Vec<Color> {
+        let mut pixels = Vec::new();
+        let mut lookup = Vec::new();
+
+        for y in 0..png.h {
+            let mut i = 0;
+            let row_start = y * (png.pitch + 1);
+            let pixel_start = row_start + 1;
+            while i < png.pitch {
+                let x = pixel_start + i;
+                lookup.push(data[x]);
+                i += 0x01;
+            }
+        }
+
+        for i in 0..lookup.len() {
+            let pixel = png.palette[lookup[i] as usize].clone();
+            pixels.push(pixel);
+        }
+
+        pixels
+    }
+}
+
 pub struct EightBitTrueColorWithAlphaDecoder;
 impl PixelDecoder for EightBitTrueColorWithAlphaDecoder {
     fn decode(&self, data: &[u8], png: &PngFile) -> Vec<Color> {
