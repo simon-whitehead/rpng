@@ -70,7 +70,7 @@ impl Filter for Paeth {
         while i < png.pitch {
             let x = start + i;
             let prev_x = x - (png.pitch + 1);
-            let prev_prev_x = prev_x - png.bytes_per_pixel;
+            let prev_prev_x = if prev_x > png.bytes_per_pixel - 1 { prev_x - png.bytes_per_pixel } else { 0 };
             let upper_left = if x - start > png.bytes_per_pixel - 1 && row > 0 { data[prev_prev_x] as i32 } else { 0 };
             let above = if row > 0 { data[prev_x] as i32 } else { 0 };
             let left = if x - start > png.bytes_per_pixel - 1 { data[x - png.bytes_per_pixel] as i32 } else { 0 };

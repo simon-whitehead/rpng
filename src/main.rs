@@ -35,7 +35,7 @@ fn main() {
             for y in 0..png.h {
                 for x in 0..png.w {
                     let p = &png.pixels[png.w * y + x];
-                    renderer.set_draw_color(sdl2::pixels::Color::RGB(p.r, p.g, p.b));
+                    renderer.set_draw_color(sdl2::pixels::Color::RGBA(p.r, p.g, p.b, p.a));
                     renderer.draw_point(sdl2::rect::Point::new(x as i32, y as i32));
                 }
             }
