@@ -240,12 +240,18 @@ impl PngFile {
                     _ => unreachable!()
                 };
 
-            filter.apply(
-                &mut pixels[..], 
-                pixel_start,
-                y,
-                &self
-            );
+            let mut i = 0;
+            while i < self.pitch {
+                let x = pixel_start + i;
+                let p = pixels[x];
+                let a = if x - pixel_start > self.bytes_per_pixel - 1 { pixels[x - self.bytes_per_pixel] } else { 0 };
+                let b = if y > 0 { pixels[x - row_size] } else { 0 };
+                let c = if x - pixel_start > self.bytes_per_pixel - 1 && y > 0 { pixels[x - row_size - self.bytes_per_pixel] } else { 0 };
+
+                pixels[x] = filter.apply(p, a, b, c);
+
+                i += 1;
+            }
         }
     }
 
