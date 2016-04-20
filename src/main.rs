@@ -23,24 +23,11 @@ fn main() {
             .accelerated()
             .build().unwrap();
 
-            let mut texture = renderer.create_texture(sdl2::pixels::PixelFormatEnum::RGB888, sdl2::render::TextureAccess::Static, png.w as u32, png.h as u32).unwrap();
+            let mut texture = renderer.create_texture(sdl2::pixels::PixelFormatEnum::RGBA8888, sdl2::render::TextureAccess::Static, png.w as u32, png.h as u32).unwrap();
 
             println!("Width: {}, Height: {}, Pixels: {}", png.w, png.h, png.pixels.len());
 
             renderer.set_blend_mode(sdl2::render::BlendMode::Blend);
-
-            renderer.set_draw_color(sdl2::pixels::Color::RGB(0,0,0));
-            renderer.clear();
-            
-            for y in 0..png.h {
-                for x in 0..png.w {
-                    let p = &png.pixels[png.w * y + x];
-                    renderer.set_draw_color(sdl2::pixels::Color::RGBA(p.r, p.g, p.b, p.a));
-                    renderer.draw_point(sdl2::rect::Point::new(x as i32, y as i32));
-                }
-            }
-
-            renderer.present();
 
             'out:
             loop {
@@ -52,6 +39,19 @@ fn main() {
                         Quit { .. } => break 'out,
                         _ => {}
                     }
+
+                    renderer.set_draw_color(sdl2::pixels::Color::RGB(0,0,0));
+                    renderer.clear();
+                    
+                    for y in 0..png.h {
+                        for x in 0..png.w {
+                            let p = &png.pixels[png.w * y + x];
+                            renderer.set_draw_color(sdl2::pixels::Color::RGBA(p.r, p.g, p.b, p.a));
+                            renderer.draw_point(sdl2::rect::Point::new(x as i32, y as i32));
+                        }
+                    }
+
+                    renderer.present();
                 }
             }
         }
