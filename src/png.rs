@@ -234,15 +234,16 @@ impl PngFile {
                 match filter_type {
                     0 => Box::new(NoFilter),
                     1 => Box::new(Sub),
-                    2 if y > 0 => Box::new(Up),
-                    3 if y > 0 => Box::new(Average),
-                    4 if y > 0 => Box::new(Paeth),
+                    2 => Box::new(Up),
+                    3 => Box::new(Average),
+                    4 => Box::new(Paeth),
                     _ => unreachable!()
                 };
 
             filter.apply(
                 &mut pixels[..], 
                 pixel_start,
+                y,
                 &self
             );
         }
