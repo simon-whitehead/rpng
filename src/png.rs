@@ -11,6 +11,7 @@ use decoders::{
     TwoBitIndexedColorDecoder,
     FourBitIndexedColorDecoder,
     EightBitIndexedColorDecoder,
+    EightBitTrueColorDecoder,
     EightBitTrueColorWithAlphaDecoder
 };
 
@@ -265,6 +266,7 @@ impl PngFile {
                 (&ColorType::IndexedColor, 2) => Box::new(TwoBitIndexedColorDecoder),
                 (&ColorType::IndexedColor, 4) => Box::new(FourBitIndexedColorDecoder),
                 (&ColorType::IndexedColor, 8) => Box::new(EightBitIndexedColorDecoder),
+                (&ColorType::TrueColor, 8) => Box::new(EightBitTrueColorDecoder),
                 (&ColorType::TrueColorWithAlpha, 8) => Box::new(EightBitTrueColorWithAlphaDecoder),
                 _ => unreachable!()
             };

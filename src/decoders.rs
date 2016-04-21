@@ -68,6 +68,24 @@ impl PixelDecoder for EightBitIndexedColorDecoder {
     }
 }
 
+pub struct EightBitTrueColorDecoder;
+impl PixelDecoder for EightBitTrueColorDecoder {
+    fn decode(&self, data: &[u8], x: usize, val: u8, png: &PngFile) -> Vec<Color> {
+        vec![
+            Color::new(
+                data[x],
+                data[x + 0x01],
+                data[x + 0x02],
+                255
+            )
+        ]
+    }
+
+    fn step(&self) -> usize {
+        0x03
+    }
+}
+
 pub struct EightBitTrueColorWithAlphaDecoder;
 impl PixelDecoder for EightBitTrueColorWithAlphaDecoder {
     fn decode(&self, data: &[u8], x: usize, val: u8, png: &PngFile) -> Vec<Color> {
