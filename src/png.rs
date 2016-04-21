@@ -244,9 +244,11 @@ impl PngFile {
             while i < self.pitch {
                 let x = pixel_start + i;
                 let p = pixels[x] as u16;
-                let a = if x - pixel_start > self.bytes_per_pixel - 1 { pixels[x - self.bytes_per_pixel] as u16 } else { 0 };
-                let b = if y > 0 { pixels[x - row_size] as u16 } else { 0 };
-                let c = if x - pixel_start > self.bytes_per_pixel - 1 && y > 0 { pixels[x - row_size - self.bytes_per_pixel] as u16 } else { 0 };
+                let x_okay = x - pixel_start > self.bytes_per_pixel - 1;
+                let y_okay = y > 0;
+                let a = iif!(x_okay, pixels[x - self.bytes_per_pixel] as u16, 0); 
+                let b = iif!(y_okay, pixels[x - row_size] as u16, 0);
+                let c = iif!(x_okay && y_okay, pixels[x - row_size - self.bytes_per_pixel] as u16, 0);
 
                 pixels[x] = filter.apply(p, a, b, c);
 
