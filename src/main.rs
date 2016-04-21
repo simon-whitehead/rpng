@@ -40,7 +40,7 @@ fn main() {
                         _ => {}
                     }
 
-                    renderer.set_draw_color(sdl2::pixels::Color::RGB(255,255,255));
+                    renderer.set_draw_color(sdl2::pixels::Color::RGB(0,0,0));
                     renderer.clear();
                     
                     for y in 0..png.h {
