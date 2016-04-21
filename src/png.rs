@@ -15,6 +15,8 @@ use decoders::{
     EightBitIndexedColorDecoder,
 
     // Greyscale Decoders
+    OneBitGreyscaleDecoder,
+    TwoBitGreyscaleDecoder,
     EightBitGreyscaleWithAlphaDecoder,
 
     // TrueColor Decoders
@@ -273,6 +275,8 @@ impl PngFile {
                 (&ColorType::IndexedColor, 2) => Box::new(TwoBitIndexedColorDecoder),
                 (&ColorType::IndexedColor, 4) => Box::new(FourBitIndexedColorDecoder),
                 (&ColorType::IndexedColor, 8) => Box::new(EightBitIndexedColorDecoder),
+                (&ColorType::Greyscale, 1) => Box::new(OneBitGreyscaleDecoder),
+                (&ColorType::Greyscale, 2) => Box::new(TwoBitGreyscaleDecoder),
                 (&ColorType::GreyscaleWithAlpha, 8) => Box::new(EightBitGreyscaleWithAlphaDecoder),
                 (&ColorType::TrueColor, 8) => Box::new(EightBitTrueColorDecoder),
                 (&ColorType::TrueColorWithAlpha, 8) => Box::new(EightBitTrueColorWithAlphaDecoder),

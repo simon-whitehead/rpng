@@ -1,5 +1,6 @@
 
 use color::Color;
+use helpers;
 use png::PngFile;
 
 pub trait PixelDecoder {
@@ -61,6 +62,63 @@ pub struct EightBitIndexedColorDecoder;
 impl PixelDecoder for EightBitIndexedColorDecoder {
     fn decode(&self, data: &[u8], x: usize, val: u8, png: &PngFile) -> Vec<Color> {
         vec![png.palette[val as usize].clone()]
+    }
+
+    fn step(&self) -> usize {
+        0x01
+    }
+}
+
+pub struct OneBitGreyscaleDecoder;
+impl PixelDecoder for OneBitGreyscaleDecoder {
+    fn decode(&self, data: &[u8], x: usize, val: u8, png: &PngFile) -> Vec<Color> {
+        let one     = iif!(data[x] >> 7 & 0x01 == 0, 0, 255);
+        let two     = iif!(data[x] >> 6 & 0x01 == 0, 0, 255);
+        let three   = iif!(data[x] >> 5 & 0x01 == 0, 0, 255);
+        let four    = iif!(data[x] >> 4 & 0x01 == 0, 0, 255);
+        let five    = iif!(data[x] >> 3 & 0x01 == 0, 0, 255);
+        let six     = iif!(data[x] >> 2 & 0x01 == 0, 0, 255);
+        let seven   = iif!(data[x] >> 1 & 0x01 == 0, 0, 255);
+        let eight   = iif!(data[x] & 0x01 == 0, 0, 255);
+
+        vec![
+            Color::new(one, one, one, 255),
+            Color::new(two, two, two, 255),
+            Color::new(three, three, three, 255),
+            Color::new(four, four, four, 255),
+            Color::new(five, five, five, 255),
+            Color::new(six, six, six, 255),
+            Color::new(seven, seven, seven, 255),
+            Color::new(eight, eight, eight, 255),
+        ]
+    }
+
+    fn step(&self) -> usize {
+        0x01
+    }
+}
+
+pub struct TwoBitGreyscaleDecoder;
+impl PixelDecoder for TwoBitGreyscaleDecoder {
+    fn decode(&self, data: &[u8], x: usize, val: u8, png: &PngFile) -> Vec<Color> {
+        let lookup = vec![
+            Color::new(0, 0, 0, 255),
+            Color::new(85, 85, 85, 255),
+            Color::new(170, 170, 170, 255),
+            Color::new(255, 255, 255, 255)
+        ];
+
+        let one     = (data[x] >> 6 & 0x03) as usize;
+        let two     = (data[x] >> 4 & 0x03) as usize;
+        let three   = (data[x] >> 2 & 0x03) as usize;
+        let four    = (data[x] & 0x03) as usize;
+
+        vec![
+            lookup[one].clone(),
+            lookup[two].clone(),
+            lookup[three].clone(),
+            lookup[four].clone()
+        ]
     }
 
     fn step(&self) -> usize {
