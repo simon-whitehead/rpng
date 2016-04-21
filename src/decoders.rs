@@ -3,167 +3,97 @@ use color::Color;
 use png::PngFile;
 
 pub trait PixelDecoder {
-    fn decode(&self, data: &[u8], png: &PngFile) -> Vec<Color>;
+    fn decode(&self, data: &[u8], x: usize, val: u8, png: &PngFile) -> Vec<Color>;
+    fn step(&self) -> usize;
 }
 
 pub struct OneBitIndexedColorDecoder;
 impl PixelDecoder for OneBitIndexedColorDecoder {
-    fn decode(&self, data: &[u8], png: &PngFile) -> Vec<Color> {
+    fn decode(&self, data: &[u8], x: usize, val: u8, png: &PngFile) -> Vec<Color> {
         let mut pixels = Vec::new();
-        let mut lookup = Vec::new();
 
-        for y in 0..png.h {
-            let mut x = 0;
-            let row_start = y * (png.pitch + 1);
-            let pixel_start = row_start + 1;
-            while x < png.pitch {
-                let mut val = data[pixel_start + x] as u8;
-                let one = val >> 7;
-                let two = (val >> 6) & 0x01;
-                let three = (val >> 5) & 0x01;
-                let four = (val >> 4) & 0x01;
-                let five = (val >> 3) & 0x01;
-                let six = (val >> 2) & 0x01;
-                let seven = (val >> 1) & 0x01;
-                let eight = val & 0x01;
-            
-                lookup.push(one);
-                lookup.push(two);
-                lookup.push(three);
-                lookup.push(four);
-                lookup.push(five);
-                lookup.push(six);
-                lookup.push(seven);
-                lookup.push(eight);
-
-                x += 0x01; // 1 byte
-            }
-        }
-
-        for i in 0..lookup.len() {
-            let pixel = png.palette[lookup[i] as usize].clone();
-            pixels.push(pixel);
-        }
+        pixels.push(png.palette[(val >> 7) as usize].clone());
+        pixels.push(png.palette[(val >> 6) as usize & 0x01].clone());
+        pixels.push(png.palette[(val >> 5) as usize & 0x01].clone());
+        pixels.push(png.palette[(val >> 4) as usize & 0x01].clone());
+        pixels.push(png.palette[(val >> 3) as usize & 0x01].clone());
+        pixels.push(png.palette[(val >> 2) as usize & 0x01].clone());
+        pixels.push(png.palette[(val >> 1) as usize & 0x01].clone());
+        pixels.push(png.palette[val as usize & 0x01].clone());
 
         pixels
+    }
+
+    fn step(&self) -> usize {
+        0x01
     }
 }
 
 pub struct TwoBitIndexedColorDecoder;
 impl PixelDecoder for TwoBitIndexedColorDecoder {
-    fn decode(&self, data: &[u8], png: &PngFile) -> Vec<Color> {
+    fn decode(&self, data: &[u8], x: usize, val: u8, png: &PngFile) -> Vec<Color> {
         let mut pixels = Vec::new();
-        let mut lookup = Vec::new();
 
-        for y in 0..png.h {
-            let mut x = 0;
-            let row_start = y * (png.pitch + 1);
-            let pixel_start = row_start + 1;
-            while x < png.pitch {
-                let mut val = data[pixel_start + x] as u8;
-                let far_left = val >> 6;
-                let left = (val >> 4) & 0x03;
-                let right = (val >> 2) & 0x03;
-                let far_right = val & 0x03;
-            
-                lookup.push(far_left);
-                lookup.push(left);
-                lookup.push(right);
-                lookup.push(far_right);
-
-                x += 0x01; // 1 byte
-            }
-        }
-
-        for i in 0..lookup.len() {
-            let pixel = png.palette[lookup[i] as usize].clone();
-            pixels.push(pixel);
-        }
+        pixels.push(png.palette[(val >> 6) as usize].clone());
+        pixels.push(png.palette[(val >> 4) as usize & 0x03].clone());
+        pixels.push(png.palette[(val >> 2) as usize & 0x03].clone());
+        pixels.push(png.palette[val as usize & 0x03].clone());
 
         pixels
+    }
+
+    fn step(&self) -> usize {
+        0x01
     }
 }
 
 pub struct FourBitIndexedColorDecoder;
 impl PixelDecoder for FourBitIndexedColorDecoder {
-    fn decode(&self, data: &[u8], png: &PngFile) -> Vec<Color> {
+    fn decode(&self, data: &[u8], x: usize, val: u8, png: &PngFile) -> Vec<Color> {
         let mut pixels = Vec::new();
-        let mut lookup = Vec::new();
-
-        for y in 0..png.h {
-            let mut x = 0;
-            let row_start = y * (png.pitch + 1);
-            let pixel_start = row_start + 1;
-            while x < png.pitch {
-                let mut val = data[pixel_start + x] as u8;
-                let left = val >> 4;
-                let right = val & 0x0f;
-            
-                lookup.push(left);
-                lookup.push(right);
-
-                x += 0x01; // 1 byte
-            }
-        }
-
-        for i in 0..lookup.len() {
-            let pixel = png.palette[lookup[i] as usize].clone();
-            pixels.push(pixel);
-        }
+        pixels.push(png.palette[(val >> 4) as usize].clone());
+        pixels.push(png.palette[val as usize & 0x0f].clone());
 
         pixels
+    }
+
+    fn step(&self) -> usize {
+        0x01
     }
 }
 
 pub struct EightBitIndexedColorDecoder;
 impl PixelDecoder for EightBitIndexedColorDecoder {
-    fn decode(&self, data: &[u8], png: &PngFile) -> Vec<Color> {
+    fn decode(&self, data: &[u8], x: usize, val: u8, png: &PngFile) -> Vec<Color> {
         let mut pixels = Vec::new();
-        let mut lookup = Vec::new();
-
-        for y in 0..png.h {
-            let mut i = 0;
-            let row_start = y * (png.pitch + 1);
-            let pixel_start = row_start + 1;
-            while i < png.pitch {
-                let x = pixel_start + i;
-                lookup.push(data[x]);
-                i += 0x01;
-            }
-        }
-
-        for i in 0..lookup.len() {
-            let pixel = png.palette[lookup[i] as usize].clone();
-            pixels.push(pixel);
-        }
+        pixels.push(png.palette[val as usize].clone());
 
         pixels
+    }
+
+    fn step(&self) -> usize {
+        0x01
     }
 }
 
 pub struct EightBitTrueColorWithAlphaDecoder;
 impl PixelDecoder for EightBitTrueColorWithAlphaDecoder {
-    fn decode(&self, data: &[u8], png: &PngFile) -> Vec<Color> {
+    fn decode(&self, data: &[u8], x: usize, val: u8, png: &PngFile) -> Vec<Color> {
         let mut pixels = Vec::new();
 
-        for y in 0..png.h {
-            let mut i = 0;
-            let row_start = y * (png.pitch + 1);
-            let pixel_start = row_start + 1;
-            while i < png.pitch {
-                let x = pixel_start + i;
-                pixels.push(
-                    Color::new(
-                        data[x],
-                        data[x + 0x01],
-                        data[x + 0x02],
-                        data[x + 0x03]
-                    )
-                );
-                i += 0x04; // 4 bytes, 8 bits per sample
-            }
-        }
+        pixels.push(
+            Color::new(
+                data[x],
+                data[x + 0x01],
+                data[x + 0x02],
+                data[x + 0x03]
+            )
+        );
 
         pixels
+    }
+
+    fn step(&self) -> usize {
+        0x04
     }
 }

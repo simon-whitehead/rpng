@@ -258,6 +258,7 @@ impl PngFile {
     }
 
     fn build_pixels(&self, pixels: &mut [u8], row_size: usize) -> Vec<Color> {
+        let mut result = Vec::new();
         let decoder: Box<PixelDecoder> = 
             match (&self.color_type, self.bit_depth) {
                 (&ColorType::IndexedColor, 1) => Box::new(OneBitIndexedColorDecoder),
@@ -268,10 +269,27 @@ impl PngFile {
                 _ => unreachable!()
             };
 
-        decoder.decode(
-            &mut pixels[..],
-            &self
-        )
+        for y in 0..self.h {
+            let mut i = 0;
+            let row_start = y * row_size;
+            let pixel_start = row_start + 1;
+            while i < self.pitch {
+                let x = pixel_start + i;
+                let mut val = pixels[x] as u8;
+                result.extend(
+                    decoder.decode(
+                        &pixels[..],
+                        x,
+                        val,
+                        &self
+                    )
+                );
+
+                i += decoder.step();
+            }
+        }
+        
+        result
     }
 
     fn get_pixel_data(&mut self) -> Result<Vec<u8>, String> {
