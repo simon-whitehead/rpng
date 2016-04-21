@@ -10,18 +10,16 @@ pub trait PixelDecoder {
 pub struct OneBitIndexedColorDecoder;
 impl PixelDecoder for OneBitIndexedColorDecoder {
     fn decode(&self, data: &[u8], x: usize, val: u8, png: &PngFile) -> Vec<Color> {
-        let mut pixels = Vec::new();
-
-        pixels.push(png.palette[(val >> 7) as usize].clone());
-        pixels.push(png.palette[(val >> 6) as usize & 0x01].clone());
-        pixels.push(png.palette[(val >> 5) as usize & 0x01].clone());
-        pixels.push(png.palette[(val >> 4) as usize & 0x01].clone());
-        pixels.push(png.palette[(val >> 3) as usize & 0x01].clone());
-        pixels.push(png.palette[(val >> 2) as usize & 0x01].clone());
-        pixels.push(png.palette[(val >> 1) as usize & 0x01].clone());
-        pixels.push(png.palette[val as usize & 0x01].clone());
-
-        pixels
+        vec![
+            png.palette[(val >> 7) as usize].clone(),
+            png.palette[(val >> 6) as usize & 0x01].clone(),
+            png.palette[(val >> 5) as usize & 0x01].clone(),
+            png.palette[(val >> 4) as usize & 0x01].clone(),
+            png.palette[(val >> 3) as usize & 0x01].clone(),
+            png.palette[(val >> 2) as usize & 0x01].clone(),
+            png.palette[(val >> 1) as usize & 0x01].clone(),
+            png.palette[val as usize & 0x01].clone()
+        ]
     }
 
     fn step(&self) -> usize {
@@ -32,14 +30,12 @@ impl PixelDecoder for OneBitIndexedColorDecoder {
 pub struct TwoBitIndexedColorDecoder;
 impl PixelDecoder for TwoBitIndexedColorDecoder {
     fn decode(&self, data: &[u8], x: usize, val: u8, png: &PngFile) -> Vec<Color> {
-        let mut pixels = Vec::new();
-
-        pixels.push(png.palette[(val >> 6) as usize].clone());
-        pixels.push(png.palette[(val >> 4) as usize & 0x03].clone());
-        pixels.push(png.palette[(val >> 2) as usize & 0x03].clone());
-        pixels.push(png.palette[val as usize & 0x03].clone());
-
-        pixels
+        vec![
+            png.palette[(val >> 6) as usize].clone(),
+            png.palette[(val >> 4) as usize & 0x03].clone(),
+            png.palette[(val >> 2) as usize & 0x03].clone(),
+            png.palette[val as usize & 0x03].clone()
+        ]
     }
 
     fn step(&self) -> usize {
@@ -50,11 +46,10 @@ impl PixelDecoder for TwoBitIndexedColorDecoder {
 pub struct FourBitIndexedColorDecoder;
 impl PixelDecoder for FourBitIndexedColorDecoder {
     fn decode(&self, data: &[u8], x: usize, val: u8, png: &PngFile) -> Vec<Color> {
-        let mut pixels = Vec::new();
-        pixels.push(png.palette[(val >> 4) as usize].clone());
-        pixels.push(png.palette[val as usize & 0x0f].clone());
-
-        pixels
+        vec![
+            png.palette[(val >> 4) as usize].clone(),
+            png.palette[val as usize & 0x0f].clone()
+        ]
     }
 
     fn step(&self) -> usize {
@@ -65,10 +60,7 @@ impl PixelDecoder for FourBitIndexedColorDecoder {
 pub struct EightBitIndexedColorDecoder;
 impl PixelDecoder for EightBitIndexedColorDecoder {
     fn decode(&self, data: &[u8], x: usize, val: u8, png: &PngFile) -> Vec<Color> {
-        let mut pixels = Vec::new();
-        pixels.push(png.palette[val as usize].clone());
-
-        pixels
+        vec![png.palette[val as usize].clone()]
     }
 
     fn step(&self) -> usize {
@@ -79,18 +71,14 @@ impl PixelDecoder for EightBitIndexedColorDecoder {
 pub struct EightBitTrueColorWithAlphaDecoder;
 impl PixelDecoder for EightBitTrueColorWithAlphaDecoder {
     fn decode(&self, data: &[u8], x: usize, val: u8, png: &PngFile) -> Vec<Color> {
-        let mut pixels = Vec::new();
-
-        pixels.push(
+        vec![
             Color::new(
                 data[x],
                 data[x + 0x01],
                 data[x + 0x02],
                 data[x + 0x03]
             )
-        );
-
-        pixels
+        ]
     }
 
     fn step(&self) -> usize {
