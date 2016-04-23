@@ -27,8 +27,6 @@ fn main() {
 
             renderer.set_blend_mode(sdl2::render::BlendMode::Blend);
 
-            let pixels = png.pixels_as_8bit();
-
             'out:
             loop {
                 for event in events.poll_iter() {
@@ -45,7 +43,7 @@ fn main() {
                     
                     for y in 0..png.h {
                         for x in 0..png.w {
-                            let p = &pixels[png.w * y + x];
+                            let p = &png.pixels[png.w * y + x];
                             renderer.set_draw_color(sdl2::pixels::Color::RGBA(p.r, p.g, p.b, p.a));
                             renderer.draw_point(sdl2::rect::Point::new(x as i32, y as i32));
                         }

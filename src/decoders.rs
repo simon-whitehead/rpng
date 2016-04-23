@@ -180,6 +180,30 @@ impl PixelDecoder for EightBitGreyscaleDecoder {
     }
 }
 
+pub struct SixteenBitGreyscaleDecoder;
+impl PixelDecoder for SixteenBitGreyscaleDecoder {
+    fn decode(&self, data: &[u8], x: usize, val: u8, png: &PngFile) -> Vec<Color> {
+        vec![
+            Color::new(
+                data[x],
+                data[x],
+                data[x],
+                255
+            ),
+            Color::new(
+                data[x + 0x01],
+                data[x + 0x01],
+                data[x + 0x01],
+                255
+            )
+        ]
+    }
+
+    fn step(&self) -> usize {
+        0x02
+    }
+}
+
 pub struct EightBitGreyscaleWithAlphaDecoder;
 impl PixelDecoder for EightBitGreyscaleWithAlphaDecoder {
     fn decode(&self, data: &[u8], x: usize, val: u8, png: &PngFile) -> Vec<Color> {

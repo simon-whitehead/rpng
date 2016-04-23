@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
-use color::Color;
+use color::{Color, Color16};
 use color_type::ColorType;
 use decoders::{
     PixelDecoder,
@@ -19,6 +19,7 @@ use decoders::{
     TwoBitGreyscaleDecoder,
     FourBitGreyscaleDecoder,
     EightBitGreyscaleDecoder,
+    SixteenBitGreyscaleDecoder,
     EightBitGreyscaleWithAlphaDecoder,
 
     // TrueColor Decoders
@@ -61,7 +62,7 @@ pub struct PngFile {
     image_data_chunks: Vec<Vec<u8>>,
 
     pub pitch: usize,
-    pixels: Vec<Color>,
+    pub pixels: Vec<Color>,
 
     pub palette: Vec<Color>,
 
@@ -127,10 +128,6 @@ impl PngFile {
 
             Ok(png)
         }
-    }
-
-    pub fn pixels_as_8bit(&self) -> &[Color] {
-        &self.pixels[..]
     }
 
     #[inline(always)]
@@ -285,6 +282,7 @@ impl PngFile {
                 (&ColorType::Greyscale, 2) => Box::new(TwoBitGreyscaleDecoder),
                 (&ColorType::Greyscale, 4) => Box::new(FourBitGreyscaleDecoder),
                 (&ColorType::Greyscale, 8) => Box::new(EightBitGreyscaleDecoder),
+                (&ColorType::Greyscale, 16) => Box::new(SixteenBitGreyscaleDecoder),
                 (&ColorType::GreyscaleWithAlpha, 8) => Box::new(EightBitGreyscaleWithAlphaDecoder),
                 (&ColorType::TrueColor, 8) => Box::new(EightBitTrueColorDecoder),
                 (&ColorType::TrueColorWithAlpha, 8) => Box::new(EightBitTrueColorWithAlphaDecoder),

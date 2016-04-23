@@ -42,3 +42,21 @@ impl fmt::Debug for Color {
         Ok(())
     }
 }
+
+pub struct Color16 {
+    pub r: u16,
+    pub g: u16,
+    pub b: u16,
+    pub a: u16
+}
+
+impl Color16 {
+    pub fn new(r: u16, g: u16, b: u16, a: u16) -> Self {
+        Color16 {
+            r: r,
+            g: g,
+            b: b,
+            a: a
+        }
+    }
+}
