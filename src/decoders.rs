@@ -126,6 +126,60 @@ impl PixelDecoder for TwoBitGreyscaleDecoder {
     }
 }
 
+pub struct FourBitGreyscaleDecoder;
+impl PixelDecoder for FourBitGreyscaleDecoder {
+    fn decode(&self, data: &[u8], x: usize, val: u8, png: &PngFile) -> Vec<Color> {
+        let lookup = vec![
+            Color::new(0, 0, 0, 255),
+            Color::new(17, 17, 17, 255),
+            Color::new(34, 34, 34, 255),
+            Color::new(51, 51, 51, 255),
+            Color::new(68, 68, 68, 255),
+            Color::new(85, 85, 85, 255),
+            Color::new(102, 102, 102, 255),
+            Color::new(119, 119, 119, 255),
+            Color::new(136, 136, 136, 255),
+            Color::new(153, 153, 153, 255),
+            Color::new(170, 170, 170, 255),
+            Color::new(187, 187, 187, 255),
+            Color::new(204, 204, 204, 255),
+            Color::new(221, 221, 221, 255),
+            Color::new(238, 238, 238, 255),
+            Color::new(255, 255, 255, 255),
+        ];
+
+        let one     = (data[x] >> 4 & 0x0f) as usize;
+        let two     = (data[x] & 0x0f) as usize;
+
+        vec![
+            lookup[one].clone(),
+            lookup[two].clone()
+        ]
+    }
+
+    fn step(&self) -> usize {
+        0x01
+    }
+}
+
+pub struct EightBitGreyscaleDecoder;
+impl PixelDecoder for EightBitGreyscaleDecoder {
+    fn decode(&self, data: &[u8], x: usize, val: u8, png: &PngFile) -> Vec<Color> {
+        vec![
+            Color::new(
+                data[x],
+                data[x],
+                data[x],
+                255
+            )
+        ]
+    }
+
+    fn step(&self) -> usize {
+        0x01
+    }
+}
+
 pub struct EightBitGreyscaleWithAlphaDecoder;
 impl PixelDecoder for EightBitGreyscaleWithAlphaDecoder {
     fn decode(&self, data: &[u8], x: usize, val: u8, png: &PngFile) -> Vec<Color> {

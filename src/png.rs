@@ -17,6 +17,8 @@ use decoders::{
     // Greyscale Decoders
     OneBitGreyscaleDecoder,
     TwoBitGreyscaleDecoder,
+    FourBitGreyscaleDecoder,
+    EightBitGreyscaleDecoder,
     EightBitGreyscaleWithAlphaDecoder,
 
     // TrueColor Decoders
@@ -59,7 +61,7 @@ pub struct PngFile {
     image_data_chunks: Vec<Vec<u8>>,
 
     pub pitch: usize,
-    pub pixels: Vec<Color>,
+    pixels: Vec<Color>,
 
     pub palette: Vec<Color>,
 
@@ -125,6 +127,10 @@ impl PngFile {
 
             Ok(png)
         }
+    }
+
+    pub fn pixels_as_8bit(&self) -> &[Color] {
+        &self.pixels[..]
     }
 
     #[inline(always)]
@@ -277,6 +283,8 @@ impl PngFile {
                 (&ColorType::IndexedColor, 8) => Box::new(EightBitIndexedColorDecoder),
                 (&ColorType::Greyscale, 1) => Box::new(OneBitGreyscaleDecoder),
                 (&ColorType::Greyscale, 2) => Box::new(TwoBitGreyscaleDecoder),
+                (&ColorType::Greyscale, 4) => Box::new(FourBitGreyscaleDecoder),
+                (&ColorType::Greyscale, 8) => Box::new(EightBitGreyscaleDecoder),
                 (&ColorType::GreyscaleWithAlpha, 8) => Box::new(EightBitGreyscaleWithAlphaDecoder),
                 (&ColorType::TrueColor, 8) => Box::new(EightBitTrueColorDecoder),
                 (&ColorType::TrueColorWithAlpha, 8) => Box::new(EightBitTrueColorWithAlphaDecoder),
