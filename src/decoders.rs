@@ -183,17 +183,16 @@ impl PixelDecoder for EightBitGreyscaleDecoder {
 pub struct SixteenBitGreyscaleDecoder;
 impl PixelDecoder for SixteenBitGreyscaleDecoder {
     fn decode(&self, data: &[u8], x: usize, val: u8, png: &PngFile) -> Vec<Color> {
+        let combined = ((data[x] as u16) << 8) | data[x + 0x01] as u16;
+
+        let percentage: f64 = combined as f64 / u16::max_value() as f64;
+        let result = (percentage * u8::max_value() as f64) as u8;
+
         vec![
             Color::new(
-                data[x],
-                data[x],
-                data[x],
-                255
-            ),
-            Color::new(
-                data[x + 0x01],
-                data[x + 0x01],
-                data[x + 0x01],
+                result,
+                result,
+                result,
                 255
             )
         ]
@@ -240,6 +239,36 @@ impl PixelDecoder for EightBitTrueColorDecoder {
     }
 }
 
+pub struct SixteenBitTrueColorDecoder;
+impl PixelDecoder for SixteenBitTrueColorDecoder {
+    fn decode(&self, data: &[u8], x: usize, val: u8, png: &PngFile) -> Vec<Color> {
+        let ru16 = ((data[x] as u16) << 8) | data[x + 0x01] as u16;
+        let gu16 = ((data[x + 0x02] as u16) << 8) | data[x + 0x03] as u16;
+        let bu16 = ((data[x + 0x04] as u16) << 8) | data[x + 0x05] as u16;
+
+        let rp: f64 = ru16 as f64 / u16::max_value() as f64;
+        let gp: f64 = gu16 as f64 / u16::max_value() as f64;
+        let bp: f64 = bu16 as f64 / u16::max_value() as f64;
+
+        let r = (rp * u8::max_value() as f64) as u8;
+        let g = (gp * u8::max_value() as f64) as u8;
+        let b = (bp * u8::max_value() as f64) as u8;
+
+        vec![
+            Color::new(
+                r,
+                g,
+                b,
+                255
+            )
+        ]
+    }
+
+    fn step(&self) -> usize {
+        0x06
+    }
+}
+
 pub struct EightBitTrueColorWithAlphaDecoder;
 impl PixelDecoder for EightBitTrueColorWithAlphaDecoder {
     fn decode(&self, data: &[u8], x: usize, val: u8, png: &PngFile) -> Vec<Color> {
@@ -255,5 +284,38 @@ impl PixelDecoder for EightBitTrueColorWithAlphaDecoder {
 
     fn step(&self) -> usize {
         0x04
+    }
+}
+
+pub struct SixteenBitTrueColorWithAlphaDecoder;
+impl PixelDecoder for SixteenBitTrueColorWithAlphaDecoder {
+    fn decode(&self, data: &[u8], x: usize, val: u8, png: &PngFile) -> Vec<Color> {
+        let ru16 = ((data[x] as u16) << 8) | data[x + 0x01] as u16;
+        let gu16 = ((data[x + 0x02] as u16) << 8) | data[x + 0x03] as u16;
+        let bu16 = ((data[x + 0x04] as u16) << 8) | data[x + 0x05] as u16;
+        let au16 = ((data[x + 0x06] as u16) << 8) | data[x + 0x07] as u16;
+
+        let rp: f64 = ru16 as f64 / u16::max_value() as f64;
+        let gp: f64 = gu16 as f64 / u16::max_value() as f64;
+        let bp: f64 = bu16 as f64 / u16::max_value() as f64;
+        let ap: f64 = au16 as f64 / u16::max_value() as f64;
+
+        let r = (rp * u8::max_value() as f64) as u8;
+        let g = (gp * u8::max_value() as f64) as u8;
+        let b = (bp * u8::max_value() as f64) as u8;
+        let a = (ap * u8::max_value() as f64) as u8;
+
+        vec![
+            Color::new(
+                r,
+                g,
+                b,
+                a
+            )
+        ]
+    }
+
+    fn step(&self) -> usize {
+        0x08
     }
 }

@@ -24,7 +24,9 @@ use decoders::{
 
     // TrueColor Decoders
     EightBitTrueColorDecoder,
-    EightBitTrueColorWithAlphaDecoder
+    SixteenBitTrueColorDecoder,
+    EightBitTrueColorWithAlphaDecoder,
+    SixteenBitTrueColorWithAlphaDecoder
 };
 
 use deflate;
@@ -206,7 +208,11 @@ impl PngFile {
                 self.bits_per_pixel = self.bit_depth;
             },
             ColorType::TrueColor => {
-                self.bits_per_pixel = 24;
+                if self.bit_depth == 16 {
+                    self.bits_per_pixel = 48;
+                } else {
+                    self.bits_per_pixel = 24;
+                }
             },
             ColorType::IndexedColor => {
                 self.bits_per_pixel = self.bit_depth;
@@ -215,7 +221,11 @@ impl PngFile {
                 self.bits_per_pixel = 16;
             },
             ColorType::TrueColorWithAlpha => {
-                self.bits_per_pixel = 32;
+                if self.bit_depth == 16 {
+                    self.bits_per_pixel = 64;
+                } else {
+                    self.bits_per_pixel = 32;
+                }
             } 
         }
 
@@ -285,7 +295,9 @@ impl PngFile {
                 (&ColorType::Greyscale, 16) => Box::new(SixteenBitGreyscaleDecoder),
                 (&ColorType::GreyscaleWithAlpha, 8) => Box::new(EightBitGreyscaleWithAlphaDecoder),
                 (&ColorType::TrueColor, 8) => Box::new(EightBitTrueColorDecoder),
+                (&ColorType::TrueColor, 16) => Box::new(SixteenBitTrueColorDecoder),
                 (&ColorType::TrueColorWithAlpha, 8) => Box::new(EightBitTrueColorWithAlphaDecoder),
+                (&ColorType::TrueColorWithAlpha, 16) => Box::new(SixteenBitTrueColorWithAlphaDecoder),
                 _ => unreachable!()
             };
 
