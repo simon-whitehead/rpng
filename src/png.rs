@@ -182,6 +182,9 @@ impl PngFile {
         match ihdr::parse(&data[self.idx..]) {
             Err(error) => return Err(error),
             Ok(ihdr) => {
+                if ihdr.interlace_method != 0 {
+                    return Err("Interlaced PNGs are not currently supported.".to_string());
+                }
                 self.w = ihdr.width;
                 self.h = ihdr.height;
                 self.bit_depth = ihdr.bit_depth as usize;
